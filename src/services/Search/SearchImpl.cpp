@@ -421,7 +421,13 @@ void SearchImpl::AddBlocks(SearchResults& srNew, std::vector<ra::data::ByteAddre
         // determine how many bytes we need to capture
         const auto nFirstRealAddress = ConvertToRealAddress(nFirstMatchingAddress);
         const auto nLastRealAddress = ConvertToRealAddress(vMatches.at(nLastIndex));
-        const uint32_t nBlockSize = nLastRealAddress - nFirstRealAddress + 1 + nPadding;
+        uint32_t nBlockSize = nLastRealAddress - nFirstRealAddress + 1 + nPadding;
+
+        // the padding can extend past the end of the memory that was read; don't capture more than that
+        const auto nOffset = nFirstRealAddress - ConvertToRealAddress(nPreviousBlockFirstAddress);
+        const auto nAvailable = gsl::narrow_cast<uint32_t>(vMemory.size() - nOffset);
+        if (nBlockSize > nAvailable)
+            nBlockSize = nAvailable;
 
         // determine the maximum number of addresses that can be associated to the captured bytes
         const auto nMaxAddresses = GetAddressCountForBytes(nBlockSize);
@@ -433,7 +439,6 @@ void SearchImpl::AddBlocks(SearchResults& srNew, std::vector<ra::data::ByteAddre
         CapturedMemoryBlock& block = AddBlock(srNew, nFirstAddress, nBlockSize, nMaxAddresses);
 
         // capture the subset of data that corresponds to the subset of matches
-        const auto nOffset = nFirstRealAddress - ConvertToRealAddress(nPreviousBlockFirstAddress);
         memcpy(block.GetBytes(), &vMemory.at(nOffset), nBlockSize);
 
         // capture the matched addresses

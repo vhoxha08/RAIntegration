@@ -45,14 +45,22 @@ public:
                 nLargestBlock = block.GetBytesSize();
         }
 
-        std::vector<unsigned char> vMemory(nLargestBlock);
+        // CompareMemory reads up to nCompareLength bytes from each candidate address, which can run
+        // past the end of the block. The buffers are padded with nulls so those reads stay in bounds
+        // and the end of the block acts as a string terminator.
+        std::vector<unsigned char> vMemory;
+        vMemory.reserve(nLargestBlock + nCompareLength);
+        std::vector<unsigned char> vPrevious;
         std::vector<ra::data::ByteAddress> vMatches;
 
         for (auto& block : GetBlocks(srPrevious))
         {
-            pReadMemory(block.GetFirstAddress(), vMemory.data(), block.GetBytesSize());
+            const auto nBlockSize = block.GetBytesSize();
+            vMemory.resize(nBlockSize);
+            pReadMemory(block.GetFirstAddress(), vMemory.data(), nBlockSize);
+            vMemory.resize(nBlockSize + nCompareLength, 0);
 
-            const auto nStop = block.GetBytesSize() - 1;
+            const auto nStop = nBlockSize - 1;
             const auto nFilterComparison = srNew.GetFilterComparison();
             const auto* pMatchingAddresses = block.GetMatchingAddressPointer();
 
@@ -73,9 +81,12 @@ public:
 
                 case SearchFilterType::InitialValue:
                 case SearchFilterType::LastKnownValue:
+                    vPrevious.assign(block.GetBytes(), block.GetBytes() + nBlockSize);
+                    vPrevious.resize(nBlockSize + nCompareLength, 0);
+
                     for (unsigned int i = 0; i < nStop; ++i)
                     {
-                        if (CompareMemory(&vMemory.at(i), block.GetBytes() + i, nCompareLength, nFilterComparison))
+                        if (CompareMemory(&vMemory.at(i), &vPrevious.at(i), nCompareLength, nFilterComparison))
                         {
                             const unsigned int nAddress = block.GetFirstAddress() + i;
                             if (block.HasMatchingAddress(pMatchingAddresses, nAddress))
@@ -87,6 +98,9 @@ public:
 
             if (!vMatches.empty())
             {
+                // drop the padding so only real memory is captured
+                vMemory.resize(nBlockSize);
+
                 // adjust the block size to account for the length of the string to ensure
                 // the block contains the whole string
                 AddBlocks(srNew, vMatches, vMemory, block.GetFirstAddress(), gsl::narrow_cast<unsigned int>(nCompareLength - 1));

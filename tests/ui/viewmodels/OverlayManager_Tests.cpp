@@ -628,10 +628,10 @@ public:
         Assert::AreEqual(10, pTracker->GetVerticalOffset());
 
         overlay.UpdateProgressTracker(ra::ui::ImageType::None, "", L"");
-        overlay.Render(mockSurface, false);
         Assert::IsTrue(overlay.WasRenderRequested()); // destroy pending
         Assert::IsTrue(pTracker->IsDestroyPending());
 
+        // the next render destroys the tracker, so pTracker must not be used after this
         overlay.Render(mockSurface, false);
         pTracker = overlay.GetProgressTracker(); // destroy occurred
         Assert::IsNull(pTracker);
