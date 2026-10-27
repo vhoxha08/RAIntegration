@@ -14,12 +14,12 @@ endif()
 find_package(Git QUIET)
 
 # ---- generated version header -------------------------------------------------
-set(RA_GENERATED_DIR ${CMAKE_BINARY_DIR}/generated)
+set(RA_GENERATED_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated)
 file(MAKE_DIRECTORY ${RA_GENERATED_DIR})
 add_custom_target(RA_BuildVer
   COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/RAInterface/MakeBuildVer.sh
           ${RA_GENERATED_DIR}/RA_BuildVer.h RAIntegration RA_INTEGRATION
-  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   BYPRODUCTS ${RA_GENERATED_DIR}/RA_BuildVer.h
   COMMENT "Generating RA_BuildVer.h"
 )
