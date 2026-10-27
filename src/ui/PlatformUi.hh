@@ -2,6 +2,7 @@
 #define RA_UI_PLATFORM_UI_HH
 #pragma once
 
+#include <cstdint>
 #include <functional>
 #include <memory>
 
@@ -42,6 +43,13 @@ public:
     /// ProcessPendingActions) until fIsOpen returns false. Without a handler modal windows are declined.
     /// </summary>
     static void SetModalLoopHandler(std::function<void(const std::function<bool()>& fIsOpen)> fHandler);
+
+    /// <summary>
+    /// Sets the host's texture functions (see ra::ui::imgui::TextureHandlers). Ignored without a GUI backend.
+    /// </summary>
+    static void SetTextureHandlers(uintptr_t (*fpCreateFromFile)(const char* sUtf8Path, int* pWidth, int* pHeight),
+                                   uintptr_t (*fpCreateFromPixels)(const uint32_t* pARGB, int nWidth, int nHeight),
+                                   void (*fpDestroy)(uintptr_t nTexture));
 
     /// <summary>
     /// Releases backend resources. Called from Initialization::Shutdown before the services are torn down.

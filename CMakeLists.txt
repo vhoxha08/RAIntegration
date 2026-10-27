@@ -183,6 +183,8 @@ if(NOT WIN32)
       src/ui/headless/HeadlessDesktop.cpp
       src/ui/headless/HeadlessImageRepository.cpp
       src/ui/imgui/ImGuiDesktop.cpp
+      src/ui/imgui/ImGuiImageRepository.cpp
+      src/ui/imgui/ImGuiSurface.cpp
       src/ui/imgui/LoginView.cpp
       src/ui/imgui/MessageBoxView.cpp
       src/ui/imgui/PlatformUi.cpp

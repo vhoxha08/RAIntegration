@@ -774,4 +774,11 @@ API void CCONV _RA_SetModalLoopHandler(void (*fpRunModalLoop)(int (*fpIsOpen)(vo
     });
 }
 
+API void CCONV _RA_SetTextureHandlers(uintptr_t (*fpCreateFromFile)(const char*, int*, int*),
+                                      uintptr_t (*fpCreateFromPixels)(const uint32_t*, int, int),
+                                      void (*fpDestroy)(uintptr_t))
+{
+    ra::ui::PlatformUi::SetTextureHandlers(fpCreateFromFile, fpCreateFromPixels, fpDestroy);
+}
+
 #endif

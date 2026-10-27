@@ -22,7 +22,7 @@ public:
 
     void AddReference(const ImageReference&) noexcept override {}
     void ReleaseReference(ImageReference&) noexcept(false) override {}
-    bool HasReferencedImageChanged(ImageReference&) const noexcept override { return false; }
+    bool HasReferencedImageChanged(ImageReference&) const override { return false; }
 };
 
 } // namespace headless

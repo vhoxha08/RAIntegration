@@ -43,6 +43,11 @@ void PlatformUi::SetModalLoopHandler(std::function<void(const std::function<bool
 {
 }
 
+void PlatformUi::SetTextureHandlers(uintptr_t (*)(const char*, int*, int*), uintptr_t (*)(const uint32_t*, int, int),
+                                    void (*)(uintptr_t))
+{
+}
+
 void PlatformUi::Shutdown()
 {
 }

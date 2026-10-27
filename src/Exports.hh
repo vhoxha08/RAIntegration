@@ -168,6 +168,12 @@ extern "C" {
     // How modal windows block: fpRunModalLoop must keep pumping events and redrawing (calling _RA_RenderImGui and
     // _RA_ProcessUIThreadActions) until fpIsOpen(pIsOpenData) returns 0.
     API void CCONV _RA_SetModalLoopHandler(void (*fpRunModalLoop)(int (*fpIsOpen)(void*), void* pIsOpenData));
+
+    // Textures for the toolkit's images (badges, overlay). Called on the UI thread with the host's rendering
+    // context current; a texture is the ImTextureID of the host's ImGui renderer (0 = failure). Pixels are ARGB.
+    API void CCONV _RA_SetTextureHandlers(uintptr_t (*fpCreateFromFile)(const char* sUtf8Path, int* pWidth, int* pHeight),
+                                          uintptr_t (*fpCreateFromPixels)(const uint32_t* pARGB, int nWidth, int nHeight),
+                                          void (*fpDestroy)(uintptr_t nTexture));
 #endif
 
 #ifdef __cplusplus

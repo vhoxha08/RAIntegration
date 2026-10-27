@@ -38,6 +38,7 @@ public:
 
 private:
     static std::unique_ptr<ImGuiWindowView> CreateView(WindowViewModelBase& vmViewModel);
+    void RenderOverlay() const;
 
     ra::ui::DialogResult ShowModalOnUIThread(WindowViewModelBase& vmViewModel) const;
 
