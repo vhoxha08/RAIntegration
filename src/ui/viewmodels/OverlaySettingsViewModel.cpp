@@ -128,13 +128,10 @@ void OverlaySettingsViewModel::BrowseLocation()
     if (vmFolder.ShowSelectFolderDialog(*this) == ra::ui::DialogResult::OK)
     {
         std::wstring sLocation = vmFolder.GetFileName();
-#ifdef _WIN32
-        if (!sLocation.empty() && sLocation.back() != '\\')
-            sLocation.push_back('\\');
-#else
-        if (!sLocation.empty() && sLocation.back() != '/')
-            sLocation.push_back('/');
-#endif
+        // end with a separator, using the kind the path already has (folder pickers outside Windows return '/')
+        const wchar_t cSeparator = (sLocation.find('/') != std::wstring::npos) ? '/' : '\\';
+        if (!sLocation.empty() && sLocation.back() != '\\' && sLocation.back() != '/')
+            sLocation.push_back(cSeparator);
 
         SetScreenshotLocation(sLocation);
     }
