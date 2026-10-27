@@ -4,6 +4,8 @@
 
 #include "ui/WindowViewModelBase.hh"
 
+#include <imgui.h>
+
 #include <functional>
 #include <string>
 
@@ -34,8 +36,18 @@ public:
     /// </summary>
     virtual void OnCloseRequested() { Close(DialogResult::Cancel); }
 
+    /// <summary>
+    /// Initial size of a modeless window. Zero sizes the window to its contents.
+    /// </summary>
+    virtual ImVec2 GetInitialSize() const { return ImVec2(0.0f, 0.0f); }
+
     WindowViewModelBase& GetViewModel() noexcept { return m_vmWindow; }
-    bool IsClosed() const noexcept { return m_bClosed; }
+
+    /// <summary>
+    /// Whether the window was closed by the view, or by the view model setting a dialog result (like the
+    /// Win32 dialogs, which close when the result changes).
+    /// </summary>
+    bool IsClosed() const { return m_bClosed || m_vmWindow.GetDialogResult() != DialogResult::None; }
 
 protected:
     void Close(DialogResult nResult)

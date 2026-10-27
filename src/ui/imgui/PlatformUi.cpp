@@ -75,6 +75,12 @@ void PlatformUi::SetTextureHandlers(uintptr_t (*fpCreateFromFile)(const char*, i
     pHandlers.fpDestroy = fpDestroy;
 }
 
+void PlatformUi::SetFileDialogHandler(int (*fpShowFileDialog)(int, const char*, const char*, const char*,
+                                                               const char*, char*, int))
+{
+    ra::ui::imgui::ImGuiDesktop::SetFileDialogHandler(fpShowFileDialog);
+}
+
 void PlatformUi::Shutdown()
 {
 }

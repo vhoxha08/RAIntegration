@@ -174,6 +174,13 @@ extern "C" {
     API void CCONV _RA_SetTextureHandlers(uintptr_t (*fpCreateFromFile)(const char* sUtf8Path, int* pWidth, int* pHeight),
                                           uintptr_t (*fpCreateFromPixels)(const uint32_t* pARGB, int nWidth, int nHeight),
                                           void (*fpDestroy)(uintptr_t nTexture));
+
+    // Shows the platform's file dialog on the UI thread. nMode: 1 = open, 2 = save, 3 = select folder.
+    // sFilters is a list of "Description\tspec\n" entries where spec is a comma separated list of extensions
+    // ("txt,json"). Writes the chosen UTF-8 path to sResult and returns non-zero, or returns 0 if canceled.
+    API void CCONV _RA_SetFileDialogHandler(int (*fpShowFileDialog)(int nMode, const char* sTitle, const char* sFilters,
+                                                                    const char* sDefaultPath, const char* sDefaultName,
+                                                                    char* sResult, int nResultSize));
 #endif
 
 #ifdef __cplusplus

@@ -128,8 +128,13 @@ void OverlaySettingsViewModel::BrowseLocation()
     if (vmFolder.ShowSelectFolderDialog(*this) == ra::ui::DialogResult::OK)
     {
         std::wstring sLocation = vmFolder.GetFileName();
+#ifdef _WIN32
         if (!sLocation.empty() && sLocation.back() != '\\')
             sLocation.push_back('\\');
+#else
+        if (!sLocation.empty() && sLocation.back() != '/')
+            sLocation.push_back('/');
+#endif
 
         SetScreenshotLocation(sLocation);
     }

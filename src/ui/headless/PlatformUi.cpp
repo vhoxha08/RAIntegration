@@ -48,6 +48,10 @@ void PlatformUi::SetTextureHandlers(uintptr_t (*)(const char*, int*, int*), uint
 {
 }
 
+void PlatformUi::SetFileDialogHandler(int (*)(int, const char*, const char*, const char*, const char*, char*, int))
+{
+}
+
 void PlatformUi::Shutdown()
 {
 }

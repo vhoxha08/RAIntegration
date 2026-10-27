@@ -52,6 +52,13 @@ public:
                                    void (*fpDestroy)(uintptr_t nTexture));
 
     /// <summary>
+    /// Sets the host's file dialog function (see _RA_SetFileDialogHandler). Ignored without a GUI backend.
+    /// </summary>
+    static void SetFileDialogHandler(int (*fpShowFileDialog)(int nMode, const char* sTitle, const char* sFilters,
+                                                             const char* sDefaultPath, const char* sDefaultName,
+                                                             char* sResult, int nResultSize));
+
+    /// <summary>
     /// Releases backend resources. Called from Initialization::Shutdown before the services are torn down.
     /// </summary>
     static void Shutdown();

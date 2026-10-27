@@ -24,6 +24,11 @@ public:
 
     void SetModalLoopHandler(ModalLoopHandler fHandler) { m_fModalLoop = std::move(fHandler); }
 
+    using FileDialogHandler = int (*)(int nMode, const char* sTitle, const char* sFilters, const char* sDefaultPath,
+                                      const char* sDefaultName, char* sResult, int nResultSize);
+
+    static void SetFileDialogHandler(FileDialogHandler fpHandler) noexcept { s_fpFileDialog = fpHandler; }
+
     void ShowWindow(WindowViewModelBase& vmViewModel) const override;
     ra::ui::DialogResult ShowModal(WindowViewModelBase& vmViewModel) const override;
     ra::ui::DialogResult ShowModal(WindowViewModelBase& vmViewModel, const WindowViewModelBase& vmParentWindow) const override;
@@ -41,12 +46,16 @@ private:
     void RenderOverlay() const;
 
     ra::ui::DialogResult ShowModalOnUIThread(WindowViewModelBase& vmViewModel) const;
+    static ra::ui::DialogResult ShowFileDialog(WindowViewModelBase& vmViewModel);
 
     struct OpenWindow
     {
         std::unique_ptr<ImGuiWindowView> pView;
         bool bModal = false;
+        bool bFocus = false;
     };
+
+    static FileDialogHandler s_fpFileDialog;
 
     ModalLoopHandler m_fModalLoop;
     mutable std::vector<std::unique_ptr<OpenWindow>> m_vWindows;

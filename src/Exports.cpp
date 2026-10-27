@@ -781,4 +781,10 @@ API void CCONV _RA_SetTextureHandlers(uintptr_t (*fpCreateFromFile)(const char*,
     ra::ui::PlatformUi::SetTextureHandlers(fpCreateFromFile, fpCreateFromPixels, fpDestroy);
 }
 
+API void CCONV _RA_SetFileDialogHandler(int (*fpShowFileDialog)(int, const char*, const char*, const char*, const char*,
+                                                                char*, int))
+{
+    ra::ui::PlatformUi::SetFileDialogHandler(fpShowFileDialog);
+}
+
 #endif

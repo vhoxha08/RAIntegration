@@ -183,10 +183,16 @@ if(NOT WIN32)
       src/ui/headless/HeadlessDesktop.cpp
       src/ui/headless/HeadlessImageRepository.cpp
       src/ui/imgui/ImGuiDesktop.cpp
+      src/ui/imgui/BrokenAchievementsView.cpp
+      src/ui/imgui/GameChecksumView.cpp
+      src/ui/imgui/ImGuiControls.cpp
       src/ui/imgui/ImGuiImageRepository.cpp
       src/ui/imgui/ImGuiSurface.cpp
       src/ui/imgui/LoginView.cpp
       src/ui/imgui/MessageBoxView.cpp
+      src/ui/imgui/OverlaySettingsView.cpp
+      src/ui/imgui/RichPresenceView.cpp
+      src/ui/imgui/UnknownGameView.cpp
       src/ui/imgui/PlatformUi.cpp
     )
     target_link_libraries(RAIntegrationImGui PUBLIC RAIntegrationCore imgui)

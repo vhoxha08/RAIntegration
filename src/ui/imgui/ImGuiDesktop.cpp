@@ -1,9 +1,15 @@
 #include "ImGuiDesktop.hh"
 
+#include "ui/imgui/BrokenAchievementsView.hh"
+#include "ui/imgui/GameChecksumView.hh"
 #include "ui/imgui/ImGuiSurface.hh"
 #include "ui/imgui/LoginView.hh"
+#include "ui/imgui/OverlaySettingsView.hh"
+#include "ui/imgui/RichPresenceView.hh"
+#include "ui/imgui/UnknownGameView.hh"
 #include "ui/viewmodels/OverlayManager.hh"
 #include "ui/imgui/MessageBoxView.hh"
+#include "ui/viewmodels/FileDialogViewModel.hh"
 
 #include "services/ServiceLocator.hh"
 
@@ -30,6 +36,8 @@ void ImGuiWindowView::RunAfterFrame(std::function<void()> fAction)
         pDesktop->PostToUIThread(std::move(fAction));
 }
 
+ImGuiDesktop::FileDialogHandler ImGuiDesktop::s_fpFileDialog = nullptr;
+
 std::unique_ptr<ImGuiWindowView> ImGuiDesktop::CreateView(WindowViewModelBase& vmViewModel)
 {
     if (auto* vmLogin = dynamic_cast<ra::ui::viewmodels::LoginViewModel*>(&vmViewModel))
@@ -38,6 +46,21 @@ std::unique_ptr<ImGuiWindowView> ImGuiDesktop::CreateView(WindowViewModelBase& v
     if (auto* vmMessageBox = dynamic_cast<ra::ui::viewmodels::MessageBoxViewModel*>(&vmViewModel))
         return std::make_unique<MessageBoxView>(*vmMessageBox);
 
+    if (auto* vmOverlaySettings = dynamic_cast<ra::ui::viewmodels::OverlaySettingsViewModel*>(&vmViewModel))
+        return std::make_unique<OverlaySettingsView>(*vmOverlaySettings);
+
+    if (auto* vmChecksum = dynamic_cast<ra::ui::viewmodels::GameChecksumViewModel*>(&vmViewModel))
+        return std::make_unique<GameChecksumView>(*vmChecksum);
+
+    if (auto* vmUnknownGame = dynamic_cast<ra::ui::viewmodels::UnknownGameViewModel*>(&vmViewModel))
+        return std::make_unique<UnknownGameView>(*vmUnknownGame);
+
+    if (auto* vmRichPresence = dynamic_cast<ra::ui::viewmodels::RichPresenceMonitorViewModel*>(&vmViewModel))
+        return std::make_unique<RichPresenceView>(*vmRichPresence);
+
+    if (auto* vmBroken = dynamic_cast<ra::ui::viewmodels::BrokenAchievementsViewModel*>(&vmViewModel))
+        return std::make_unique<BrokenAchievementsView>(*vmBroken);
+
     return nullptr;
 }
 
@@ -45,8 +68,11 @@ void ImGuiDesktop::ShowWindow(WindowViewModelBase& vmViewModel) const
 {
     for (const auto& pWindow : m_vWindows)
     {
-        if (&pWindow->pView->GetViewModel() == &vmViewModel)
-            return; // already open
+        if (&pWindow->pView->GetViewModel() == &vmViewModel && !pWindow->pView->IsClosed())
+        {
+            pWindow->bFocus = true; // already open, bring it to the front
+            return;
+        }
     }
 
     auto pView = CreateView(vmViewModel);
@@ -56,9 +82,14 @@ void ImGuiDesktop::ShowWindow(WindowViewModelBase& vmViewModel) const
         return;
     }
 
+    vmViewModel.SetDialogResult(ra::ui::DialogResult::None);
+
     auto pWindow = std::make_unique<OpenWindow>();
     pWindow->pView = std::move(pView);
+    pWindow->bFocus = true;
     m_vWindows.push_back(std::move(pWindow));
+
+    vmViewModel.SetIsVisible(true);
 }
 
 ra::ui::DialogResult ImGuiDesktop::ShowModal(WindowViewModelBase& vmViewModel) const
@@ -94,6 +125,9 @@ ra::ui::DialogResult ImGuiDesktop::ShowModal(WindowViewModelBase& vmViewModel,
 
 ra::ui::DialogResult ImGuiDesktop::ShowModalOnUIThread(WindowViewModelBase& vmViewModel) const
 {
+    if (dynamic_cast<ra::ui::viewmodels::FileDialogViewModel*>(&vmViewModel) != nullptr && s_fpFileDialog)
+        return ShowFileDialog(vmViewModel);
+
     auto pView = CreateView(vmViewModel);
     if (pView == nullptr || !m_fModalLoop)
         return HeadlessDesktop::ShowModal(vmViewModel);
@@ -106,7 +140,9 @@ ra::ui::DialogResult ImGuiDesktop::ShowModalOnUIThread(WindowViewModelBase& vmVi
     const OpenWindow* pModal = pWindow.get();
     m_vWindows.push_back(std::move(pWindow));
 
+    vmViewModel.SetIsVisible(true);
     m_fModalLoop([pModal]() { return !pModal->pView->IsClosed(); });
+    vmViewModel.SetIsVisible(false);
 
     for (auto pIter = m_vWindows.begin(); pIter != m_vWindows.end(); ++pIter)
     {
@@ -118,6 +154,66 @@ ra::ui::DialogResult ImGuiDesktop::ShowModalOnUIThread(WindowViewModelBase& vmVi
     }
 
     return vmViewModel.GetDialogResult();
+}
+
+ra::ui::DialogResult ImGuiDesktop::ShowFileDialog(WindowViewModelBase& vmViewModel)
+{
+    auto& vmFileDialog = dynamic_cast<ra::ui::viewmodels::FileDialogViewModel&>(vmViewModel);
+
+    int nMode = 0;
+    switch (vmFileDialog.GetMode())
+    {
+        case ra::ui::viewmodels::FileDialogViewModel::Mode::Open: nMode = 1; break;
+        case ra::ui::viewmodels::FileDialogViewModel::Mode::Save: nMode = 2; break;
+        case ra::ui::viewmodels::FileDialogViewModel::Mode::Folder: nMode = 3; break;
+        default: return ra::ui::DialogResult::None;
+    }
+
+    // file types are stored as "*.ext1;*.ext2", the host expects "ext1,ext2"
+    std::string sFilters;
+    for (const auto& pType : vmFileDialog.GetFileTypes())
+    {
+        std::string sSpec;
+        const std::string sPatterns = ra::util::String::Narrow(pType.second);
+        size_t nStart = 0;
+        while (nStart <= sPatterns.length())
+        {
+            size_t nEnd = sPatterns.find(';', nStart);
+            if (nEnd == std::string::npos)
+                nEnd = sPatterns.length();
+            const std::string sPattern = sPatterns.substr(nStart, nEnd - nStart);
+            nStart = nEnd + 1;
+
+            const auto nIndex = sPattern.find_last_of('.');
+            const std::string sExtension = (nIndex == std::string::npos) ? sPattern : sPattern.substr(nIndex + 1);
+            if (sExtension.empty() || sExtension == "*")
+                continue;
+
+            if (!sSpec.empty())
+                sSpec.push_back(',');
+            sSpec.append(sExtension);
+        }
+
+        if (!sSpec.empty())
+            sFilters.append(ra::util::String::Narrow(pType.first)).append("\t").append(sSpec).append("\n");
+    }
+
+    const std::string sTitle = ra::util::String::Narrow(vmFileDialog.GetWindowTitle());
+    const std::string sDirectory = ra::util::String::Narrow(vmFileDialog.GetInitialDirectory());
+    const std::string sFileName = ra::util::String::Narrow(vmFileDialog.GetFileName());
+
+    std::string sResult(4096, '\0');
+    if (!s_fpFileDialog(nMode, sTitle.c_str(), sFilters.c_str(), sDirectory.c_str(), sFileName.c_str(), sResult.data(),
+                        gsl::narrow_cast<int>(sResult.size())))
+    {
+        vmFileDialog.SetDialogResult(ra::ui::DialogResult::Cancel);
+        return ra::ui::DialogResult::Cancel;
+    }
+
+    sResult.resize(strlen(sResult.c_str()));
+    vmFileDialog.SetFileName(ra::util::String::Widen(sResult));
+    vmFileDialog.SetDialogResult(ra::ui::DialogResult::OK);
+    return ra::ui::DialogResult::OK;
 }
 
 void ImGuiDesktop::CloseWindow(WindowViewModelBase& vmViewModel) const
@@ -160,6 +256,29 @@ void ImGuiDesktop::Render() const
             ImGui::SetNextWindowPos(pViewport->GetWorkCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
             ImGui::SetNextWindowSizeConstraints(ImVec2(0.0f, 0.0f), pViewport->WorkSize);
         }
+        else
+        {
+            const ImVec2 vSize = pView.GetInitialSize();
+            if (vSize.x > 0.0f)
+            {
+                ImGui::SetNextWindowSize(vSize, ImGuiCond_Appearing);
+            }
+            else
+            {
+                nFlags |= ImGuiWindowFlags_AlwaysAutoResize;
+            }
+
+            // cascade new windows from the top left of the game area
+            const float fOffset = ImGui::GetFontSize() * 2.0f * static_cast<float>(i % 8);
+            ImGui::SetNextWindowPos(ImVec2(pViewport->WorkPos.x + 20.0f + fOffset, pViewport->WorkPos.y + 20.0f + fOffset),
+                                    ImGuiCond_Appearing);
+        }
+
+        if (pWindow.bFocus)
+        {
+            ImGui::SetNextWindowFocus();
+            pWindow.bFocus = false;
+        }
 
         ImGui::BeginDisabled(!bInteractive);
         bool bOpen = true;
@@ -181,7 +300,10 @@ void ImGuiDesktop::Render() const
     for (auto pIter = m_vWindows.begin(); pIter != m_vWindows.end();)
     {
         if (!(*pIter)->bModal && (*pIter)->pView->IsClosed())
+        {
+            (*pIter)->pView->GetViewModel().SetIsVisible(false);
             pIter = m_vWindows.erase(pIter);
+        }
         else
             ++pIter;
     }
