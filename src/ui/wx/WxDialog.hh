@@ -3,9 +3,11 @@
 #pragma once
 
 #include "ui/WindowViewModelBase.hh"
+#include "ui/wx/WxBinding.hh"
 
 #include <wx/dialog.h>
 
+#include <atomic>
 #include <functional>
 
 namespace ra {
@@ -46,6 +48,21 @@ protected:
 
     void OnViewModelStringValueChanged(const StringModelProperty::ChangeArgs& args) override;
     void OnViewModelIntValueChanged(const IntModelProperty::ChangeArgs& args) override;
+    void OnViewModelBoolValueChanged(const BoolModelProperty::ChangeArgs& args) override;
+
+    /// <summary>
+    /// Updates the controls from the view model(s). Called after any change of the window's view model or of
+    /// anything passed to Watch, once per batch of changes. Views call it at the end of their constructor.
+    /// </summary>
+    virtual void UpdateControls() {}
+
+    /// <summary>
+    /// Updates the controls after the current event (coalesces multiple changes; safe from any thread).
+    /// </summary>
+    void ScheduleUpdate();
+
+    void Watch(ViewModelBase& vmViewModel) { m_pWatcher.Watch(vmViewModel); }
+    void Watch(ViewModelCollectionBase& vmCollection) { m_pWatcher.Watch(vmCollection); }
 
     WindowViewModelBase& m_vmWindow;
 
@@ -53,6 +70,8 @@ private:
     void OnCloseWindow(wxCloseEvent& event);
     void OnButton(wxCommandEvent& event);
 
+    ChangeWatcher m_pWatcher;
+    std::atomic<bool> m_bUpdateScheduled{false};
     bool m_bModeless = false;
     bool m_bClosing = false;
 };

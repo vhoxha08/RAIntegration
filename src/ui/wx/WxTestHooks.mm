@@ -31,6 +31,20 @@ NSWindow* FrontWindow()
     return [[NSApp orderedWindows] firstObject];
 }
 
+NSTableView* FindTable(NSView* pView)
+{
+    if ([pView isKindOfClass:[NSTableView class]])
+        return (NSTableView*)pView;
+
+    for (NSView* pChild in [pView subviews])
+    {
+        if (NSTableView* pTable = FindTable(pChild))
+            return pTable;
+    }
+
+    return nil;
+}
+
 NSButton* FindButton(NSView* pView, NSString* sTitle)
 {
     if ([pView isKindOfClass:[NSButton class]] && [[(NSButton*)pView title] isEqualToString:sTitle])
@@ -87,9 +101,24 @@ void RunStep(const Step& pStep)
     }
     else if (pStep.sAction == "click")
     {
+        // the modal window if there is one, otherwise any visible window
+        NSString* sTitle = [NSString stringWithUTF8String:pStep.sArgs.c_str()];
         NSWindow* pWindow = FrontWindow();
-        NSButton* pButton = FindButton([[pWindow contentView] superview] ?: [pWindow contentView],
-                                       [NSString stringWithUTF8String:pStep.sArgs.c_str()]);
+        NSButton* pButton = FindButton([[pWindow contentView] superview] ?: [pWindow contentView], sTitle);
+        if (pButton == nil && [NSApp modalWindow] == nil)
+        {
+            for (NSWindow* pOther in [NSApp windows])
+            {
+                if (![pOther isVisible])
+                    continue;
+                pButton = FindButton([pOther contentView], sTitle);
+                if (pButton != nil)
+                {
+                    pWindow = pOther;
+                    break;
+                }
+            }
+        }
         fprintf(stderr, "RA_WX_TEST click '%s' in '%s': %s\n", pStep.sArgs.c_str(), [[pWindow title] UTF8String],
                 pButton ? "found" : "not found");
         [pButton performClick:nil];
@@ -102,6 +131,22 @@ void RunStep(const Step& pStep)
                                replacementRange:NSMakeRange(NSNotFound, 0)];
         else
             fprintf(stderr, "RA_WX_TEST type: no focused text field\n");
+    }
+    else if (pStep.sAction == "selectrow")
+    {
+        // selects a row of the first table in a visible window (like clicking it)
+        for (NSWindow* pWindow in [NSApp windows])
+        {
+            NSTableView* pTable = [pWindow isVisible] ? FindTable([pWindow contentView]) : nil;
+            if (pTable == nil)
+                continue;
+
+            const auto nRow = static_cast<NSUInteger>(atoi(pStep.sArgs.c_str()));
+            [pTable selectRowIndexes:[NSIndexSet indexSetWithIndex:nRow] byExtendingSelection:NO];
+            fprintf(stderr, "RA_WX_TEST selected row %lu in '%s'\n", static_cast<unsigned long>(nRow),
+                    [[pWindow title] UTF8String]);
+            break;
+        }
     }
     else if (pStep.sAction == "list")
     {

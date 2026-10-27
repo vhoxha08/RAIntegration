@@ -10,8 +10,10 @@
 #include "util/Strings.hh"
 
 #include <imgui.h>
+#include <imgui_internal.h>
 
 #include <algorithm>
+#include <mutex>
 #include <cfloat>
 #include <cmath>
 
@@ -21,8 +23,10 @@ namespace imgui {
 
 static bool CanUseImGui()
 {
-    // ImGui is not thread safe; only measure text with it on the UI thread
-    if (ImGui::GetCurrentContext() == nullptr || !ra::services::ServiceLocator::Exists<ra::ui::IDesktop>())
+    // ImGui is not thread safe; only measure text with it on the UI thread, and only while the host is building a
+    // frame (surfaces may also be measured by other UI code, i.e. native windows painting outside of a frame)
+    if (ImGui::GetCurrentContext() == nullptr || !ImGui::GetCurrentContext()->WithinFrameScope ||
+        !ra::services::ServiceLocator::Exists<ra::ui::IDesktop>())
         return false;
 
     return ra::services::ServiceLocator::Get<ra::ui::IDesktop>().IsOnUIThread();
@@ -74,6 +78,7 @@ ImGuiSurface::ImGuiSurface(int nWidth, int nHeight, bool bTransparent) noexcept 
 ImGuiSurface::Op& ImGuiSurface::AddOp(OpType nType, int nX, int nY, int nWidth, int nHeight)
 {
     Op& pOp = m_vOps.emplace_back();
+    pOp.nSequence = m_nNextSequence++;
     pOp.nType = nType;
     pOp.fX = static_cast<float>(nX);
     pOp.fY = static_cast<float>(nY);
@@ -91,6 +96,7 @@ void ImGuiSurface::AddOp(Op&& pOp)
     if (pOp.nType == OpType::Rectangle && pOp.fAlpha >= 1.0f && (pOp.nColor >> 24) == 0xFF)
         RemoveCoveredOps(pOp);
 
+    pOp.nSequence = m_nNextSequence++;
     m_vOps.push_back(std::move(pOp));
 }
 
@@ -151,32 +157,55 @@ void ImGuiSurface::FillRectangle(int nX, int nY, int nWidth, int nHeight, Color 
     AddOp(std::move(pOp));
 }
 
-int ImGuiSurface::LoadFont([[maybe_unused]] const std::string& sFont, int nFontSize, FontStyles nStyle)
+static ImGuiSurface::TextMeasurer s_fTextMeasurer;
+
+void ImGuiSurface::SetTextMeasurer(TextMeasurer fMeasurer) { s_fTextMeasurer = std::move(fMeasurer); }
+
+static std::mutex s_pFontsMutex;
+static std::vector<ImGuiSurface::Font> s_vFonts;
+
+int ImGuiSurface::LoadFont(const std::string& sFont, int nFontSize, FontStyles nStyle)
 {
-    // the font face is ignored; everything uses the ImGui font at the requested size
+    // ImGui draws everything with its own font at the requested size; the face is kept for other renderers
     const bool bBold = (static_cast<int>(nStyle) & static_cast<int>(FontStyles::Bold)) != 0;
-    for (size_t i = 0; i < m_vFonts.size(); ++i)
+
+    std::lock_guard<std::mutex> lock(s_pFontsMutex);
+    for (size_t i = 0; i < s_vFonts.size(); ++i)
     {
-        if (m_vFonts.at(i).fSize == static_cast<float>(nFontSize) && m_vFonts.at(i).bBold == bBold)
+        const auto& pFont = s_vFonts.at(i);
+        if (pFont.fSize == static_cast<float>(nFontSize) && pFont.bBold == bBold && pFont.sFace == sFont)
             return gsl::narrow_cast<int>(i) + 1;
     }
 
-    m_vFonts.push_back({static_cast<float>(nFontSize), bBold});
-    return gsl::narrow_cast<int>(m_vFonts.size());
+    s_vFonts.push_back({sFont, static_cast<float>(nFontSize), bBold});
+    return gsl::narrow_cast<int>(s_vFonts.size());
+}
+
+ImGuiSurface::Font ImGuiSurface::GetFont(int nFont)
+{
+    std::lock_guard<std::mutex> lock(s_pFontsMutex);
+    if (nFont > 0 && nFont <= gsl::narrow_cast<int>(s_vFonts.size()))
+        return s_vFonts.at(gsl::narrow_cast<size_t>(nFont) - 1);
+
+    return {};
 }
 
 ra::ui::Size ImGuiSurface::MeasureText(int nFont, const std::wstring& sText) const
 {
-    const float fSize = (nFont > 0 && nFont <= gsl::narrow_cast<int>(m_vFonts.size()))
-                            ? m_vFonts.at(gsl::narrow_cast<size_t>(nFont) - 1).fSize : 13.0f;
-    const bool bBold = (nFont > 0 && nFont <= gsl::narrow_cast<int>(m_vFonts.size()))
-                            ? m_vFonts.at(gsl::narrow_cast<size_t>(nFont) - 1).bBold : false;
+    const Font pFont = GetFont(nFont);
+    const float fSize = pFont.fSize;
+    const bool bBold = pFont.bBold;
 
     float fWidth = 0.0f;
     if (CanUseImGui())
     {
         const std::string sUtf8 = ToDisplayText(sText);
         fWidth = ImGui::GetFont()->CalcTextSizeA(fSize, FLT_MAX, 0.0f, sUtf8.c_str()).x;
+    }
+    else if (s_fTextMeasurer && ra::services::ServiceLocator::Exists<ra::ui::IDesktop>() &&
+             ra::services::ServiceLocator::Get<ra::ui::IDesktop>().IsOnUIThread())
+    {
+        return s_fTextMeasurer(pFont.sFace, fSize, bBold, sText);
     }
     else
     {
@@ -198,15 +227,10 @@ void ImGuiSurface::WriteText(int nX, int nY, int nFont, Color nColor, const std:
     Op& pOp = AddOp(OpType::Text, nX, nY, pSize.Width, pSize.Height);
     pOp.nColor = nColor.ARGB;
     pOp.fAlpha = GetAlpha(nColor);
-    if (nFont > 0 && nFont <= gsl::narrow_cast<int>(m_vFonts.size()))
-    {
-        pOp.fFontSize = m_vFonts.at(gsl::narrow_cast<size_t>(nFont) - 1).fSize;
-        pOp.bBold = m_vFonts.at(gsl::narrow_cast<size_t>(nFont) - 1).bBold;
-    }
-    else
-    {
-        pOp.fFontSize = 13.0f;
-    }
+    const Font pFont = GetFont(nFont);
+    pOp.fFontSize = pFont.fSize;
+    pOp.bBold = pFont.bBold;
+    pOp.sFontFace = pFont.sFace;
     pOp.sText = ToDisplayText(sText);
 }
 

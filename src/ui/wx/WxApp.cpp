@@ -4,9 +4,16 @@
 #include "ui/wx/WxTestHooks.hh"
 #endif
 
+#include "ui/imgui/ImGuiSurface.hh"
+
 #include <wx/app.h>
+#include <wx/dcscreen.h>
+#include <wx/font.h>
 #include <wx/init.h>
 #include <wx/string.h>
+
+#include <map>
+#include <tuple>
 
 namespace ra {
 namespace ui {
@@ -59,6 +66,16 @@ bool EnsureWxInitialized()
 
     s_nState = WxState::Running;
 
+    // surfaces painted by native windows (i.e. the memory viewer) lay out text with the native fonts
+    ra::ui::imgui::ImGuiSurface::SetTextMeasurer(
+        [](const std::string& sFace, float fSize, bool bBold, const std::wstring& sText) {
+            wxScreenDC dc;
+            dc.SetFont(GetSurfaceFont(sFace, fSize, bBold));
+            wxCoord nWidth = 0, nHeight = 0;
+            dc.GetTextExtent(ToWx(sText), &nWidth, &nHeight);
+            return ra::ui::Size{nWidth, nHeight};
+        });
+
 #ifdef RA_WX_TEST_HOOKS
     StartTestHooks();
 #endif
@@ -80,9 +97,28 @@ void ShutdownWx()
     if (s_nState != WxState::Running)
         return;
 
+    ra::ui::imgui::ImGuiSurface::SetTextMeasurer(nullptr);
     wxTheApp->OnExit();
     wxEntryCleanup();
     s_nState = WxState::Stopped;
+}
+
+const wxFont& GetSurfaceFont(const std::string& sFace, float fSize, bool bBold)
+{
+    static std::map<std::tuple<std::string, int, bool>, wxFont> s_mFonts;
+
+    const auto pKey = std::make_tuple(sFace, static_cast<int>(fSize), bBold);
+    auto pIter = s_mFonts.find(pKey);
+    if (pIter != s_mFonts.end())
+        return pIter->second;
+
+    // the toolkit asks for Windows fonts; use the platform's equivalents
+    const bool bMonospace = sFace == "Consolas" || sFace.find("Courier") != std::string::npos ||
+                            sFace.find("Mono") != std::string::npos;
+    wxFontInfo pInfo(wxSize(0, static_cast<int>(fSize)));
+    pInfo.Family(bMonospace ? wxFONTFAMILY_TELETYPE : wxFONTFAMILY_SWISS).Bold(bBold);
+
+    return s_mFonts.emplace(pKey, wxFont(pInfo)).first->second;
 }
 
 wxString ToWx(const std::wstring& sText) { return wxString(sText.c_str(), sText.length()); }

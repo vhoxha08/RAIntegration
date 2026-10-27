@@ -176,33 +176,6 @@ if(NOT WIN32)
   target_precompile_headers(RAHeadlessSmoke REUSE_FROM RAIntegrationCore)
   ra_apply_compat(RAHeadlessSmoke)
 
-  # UI backend that draws the toolkit's windows with Dear ImGui inside the host's window. Built when the host
-  # project provides an "imgui" target (Dear ImGui with misc/cpp/imgui_stdlib), so both share one ImGui context.
-  if(TARGET imgui)
-    add_library(RAIntegrationImGui STATIC
-      src/ui/headless/HeadlessDesktop.cpp
-      src/ui/headless/HeadlessImageRepository.cpp
-      src/ui/imgui/ImGuiDesktop.cpp
-      src/ui/imgui/BrokenAchievementsView.cpp
-      src/ui/imgui/GameChecksumView.cpp
-      src/ui/imgui/ImGuiControls.cpp
-      src/ui/imgui/ImGuiImageRepository.cpp
-      src/ui/imgui/ImGuiOverlay.cpp
-      src/ui/imgui/ImGuiSurface.cpp
-      src/ui/imgui/LoginView.cpp
-      src/ui/imgui/MemoryInspectorView.cpp
-      src/ui/imgui/MemoryViewerWidget.cpp
-      src/ui/imgui/MessageBoxView.cpp
-      src/ui/imgui/OverlaySettingsView.cpp
-      src/ui/imgui/RichPresenceView.cpp
-      src/ui/imgui/UnknownGameView.cpp
-      src/ui/imgui/PlatformUi.cpp
-    )
-    target_link_libraries(RAIntegrationImGui PUBLIC RAIntegrationCore imgui)
-    target_precompile_headers(RAIntegrationImGui REUSE_FROM RAIntegrationCore)
-    ra_apply_compat(RAIntegrationImGui)
-  endif()
-
   # UI backend with native windows (wxWidgets, built statically from the wxWidgets submodule). The overlay is
   # still drawn by the host's Dear ImGui frame, so this also needs the host's "imgui" target.
   option(RA_BUILD_WX_UI "Build the wxWidgets UI backend" OFF)
@@ -230,9 +203,17 @@ if(NOT WIN32)
       src/ui/imgui/ImGuiImageRepository.cpp
       src/ui/imgui/ImGuiOverlay.cpp
       src/ui/imgui/ImGuiSurface.cpp
+      src/ui/wx/BrokenAchievementsDialog.cpp
+      src/ui/wx/GameChecksumDialog.cpp
       src/ui/wx/LoginDialog.cpp
+      src/ui/wx/MemoryInspectorDialog.cpp
+      src/ui/wx/MemoryViewerControl.cpp
+      src/ui/wx/OverlaySettingsDialog.cpp
       src/ui/wx/PlatformUi.cpp
+      src/ui/wx/RichPresenceDialog.cpp
+      src/ui/wx/UnknownGameDialog.cpp
       src/ui/wx/WxApp.cpp
+      src/ui/wx/WxBinding.cpp
       src/ui/wx/WxDesktop.cpp
       src/ui/wx/WxDialog.cpp
     )

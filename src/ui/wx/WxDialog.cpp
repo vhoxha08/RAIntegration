@@ -10,7 +10,8 @@ namespace wx {
 
 WxDialog::WxDialog(WindowViewModelBase& vmWindow, long nStyle) :
     wxDialog(nullptr, wxID_ANY, ToWx(vmWindow.GetWindowTitle()), wxDefaultPosition, wxDefaultSize, nStyle),
-    m_vmWindow(vmWindow)
+    m_vmWindow(vmWindow),
+    m_pWatcher([this]() { ScheduleUpdate(); })
 {
     m_vmWindow.AddNotifyTarget(*this);
 
@@ -20,7 +21,25 @@ WxDialog::WxDialog(WindowViewModelBase& vmWindow, long nStyle) :
 
 WxDialog::~WxDialog()
 {
+    m_pWatcher.Detach();
     m_vmWindow.RemoveNotifyTarget(*this);
+}
+
+void WxDialog::ScheduleUpdate()
+{
+    if (m_bUpdateScheduled.exchange(true))
+        return;
+
+    CallAfter([this]() {
+        m_bUpdateScheduled = false;
+        if (!m_bClosing)
+            UpdateControls();
+    });
+}
+
+void WxDialog::OnViewModelBoolValueChanged(const BoolModelProperty::ChangeArgs&)
+{
+    ScheduleUpdate();
 }
 
 void WxDialog::CloseWithResult(DialogResult nResult)
@@ -54,6 +73,8 @@ void WxDialog::OnViewModelStringValueChanged(const StringModelProperty::ChangeAr
 {
     if (args.Property == WindowViewModelBase::WindowTitleProperty)
         SetTitle(ToWx(args.tNewValue));
+
+    ScheduleUpdate();
 }
 
 void WxDialog::OnViewModelIntValueChanged(const IntModelProperty::ChangeArgs& args)
@@ -64,7 +85,10 @@ void WxDialog::OnViewModelIntValueChanged(const IntModelProperty::ChangeArgs& ar
     {
         const auto nResult = ra::itoe<DialogResult>(args.tNewValue);
         CallAfter([this, nResult]() { CloseWithResult(nResult); });
+        return;
     }
+
+    ScheduleUpdate();
 }
 
 void WxDialog::OnCloseWindow(wxCloseEvent&)

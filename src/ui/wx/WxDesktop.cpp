@@ -2,7 +2,13 @@
 
 #include "ui/viewmodels/FileDialogViewModel.hh"
 #include "ui/viewmodels/MessageBoxViewModel.hh"
+#include "ui/wx/BrokenAchievementsDialog.hh"
+#include "ui/wx/GameChecksumDialog.hh"
 #include "ui/wx/LoginDialog.hh"
+#include "ui/wx/MemoryInspectorDialog.hh"
+#include "ui/wx/OverlaySettingsDialog.hh"
+#include "ui/wx/RichPresenceDialog.hh"
+#include "ui/wx/UnknownGameDialog.hh"
 #include "ui/wx/WxApp.hh"
 #include "ui/wx/WxDialog.hh"
 
@@ -25,6 +31,24 @@ WxDialog* WxDesktop::CreateDialog(WindowViewModelBase& vmViewModel)
 {
     if (auto* vmLogin = dynamic_cast<ra::ui::viewmodels::LoginViewModel*>(&vmViewModel))
         return new LoginDialog(*vmLogin);
+
+    if (auto* vmOverlaySettings = dynamic_cast<ra::ui::viewmodels::OverlaySettingsViewModel*>(&vmViewModel))
+        return new OverlaySettingsDialog(*vmOverlaySettings);
+
+    if (auto* vmChecksum = dynamic_cast<ra::ui::viewmodels::GameChecksumViewModel*>(&vmViewModel))
+        return new GameChecksumDialog(*vmChecksum);
+
+    if (auto* vmUnknownGame = dynamic_cast<ra::ui::viewmodels::UnknownGameViewModel*>(&vmViewModel))
+        return new UnknownGameDialog(*vmUnknownGame);
+
+    if (auto* vmRichPresence = dynamic_cast<ra::ui::viewmodels::RichPresenceMonitorViewModel*>(&vmViewModel))
+        return new RichPresenceDialog(*vmRichPresence);
+
+    if (auto* vmBroken = dynamic_cast<ra::ui::viewmodels::BrokenAchievementsViewModel*>(&vmViewModel))
+        return new BrokenAchievementsDialog(*vmBroken);
+
+    if (auto* vmMemoryInspector = dynamic_cast<ra::ui::viewmodels::MemoryInspectorViewModel*>(&vmViewModel))
+        return new MemoryInspectorDialog(*vmMemoryInspector);
 
     return nullptr;
 }

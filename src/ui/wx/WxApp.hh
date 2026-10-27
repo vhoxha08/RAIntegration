@@ -4,6 +4,7 @@
 
 #include <string>
 
+class wxFont;
 class wxString;
 
 namespace ra {
@@ -31,6 +32,11 @@ void ShutdownWx();
 /// Converts between the toolkit's wide strings and wxString.
 /// </summary>
 wxString ToWx(const std::wstring& sText);
+
+/// <summary>
+/// The native font for a toolkit font (face name as passed to ISurface::LoadFont, size in pixels).
+/// </summary>
+const wxFont& GetSurfaceFont(const std::string& sFace, float fSize, bool bBold);
 std::wstring FromWx(const wxString& sText);
 
 } // namespace wx

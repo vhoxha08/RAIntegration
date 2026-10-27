@@ -4,6 +4,7 @@
 
 #include "ui/drawing/ISurface.hh"
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -46,7 +47,6 @@ public:
     /// </summary>
     void Replay(ImDrawList& pDrawList, float fX, float fY) const;
 
-private:
     struct PixelImage;
 
     enum class OpType
@@ -67,6 +67,7 @@ private:
 
         float fFontSize = 0.0f;
         bool bBold = false;
+        std::string sFontFace;
         std::string sText; // UTF-8
 
         ImageType nImageType = ImageType::None;
@@ -74,8 +75,34 @@ private:
         bool bStretch = false;
 
         std::shared_ptr<PixelImage> pPixels;
+
+        uint64_t nSequence = 0; // increases with every recorded command (see GetOps)
     };
 
+    /// <summary>
+    /// The recorded drawing commands, in order (for drawing the surface with something other than ImGui). Commands
+    /// hidden by later opaque fills are dropped; a renderer that keeps its own image can draw just the commands
+    /// with a higher nSequence than the last one it drew.
+    /// </summary>
+    const std::vector<Op>& GetOps() const noexcept { return m_vOps; }
+
+    /// <summary>
+    /// Measures text for surfaces that are not drawn by ImGui (i.e. by native windows). Used on the UI thread
+    /// outside of ImGui frames; elsewhere the size is estimated.
+    /// </summary>
+    using TextMeasurer = std::function<ra::ui::Size(const std::string& sFace, float fSize, bool bBold,
+                                                    const std::wstring& sText)>;
+    static void SetTextMeasurer(TextMeasurer fMeasurer);
+
+    // Like GDI fonts, fonts are shared by all surfaces: callers load a font on one surface and use it on others
+    struct Font
+    {
+        std::string sFace;
+        float fSize = 13.0f;
+        bool bBold = false;
+    };
+
+private:
     Op& AddOp(OpType nType, int nX, int nY, int nWidth, int nHeight);
     void AddOp(Op&& pOp);
     void RemoveCoveredOps(const Op& pOpaqueOp);
@@ -85,13 +112,9 @@ private:
     int m_nHeight;
     bool m_bTransparent;
     std::vector<Op> m_vOps;
+    uint64_t m_nNextSequence = 1;
 
-    struct Font
-    {
-        float fSize;
-        bool bBold;
-    };
-    std::vector<Font> m_vFonts;
+    static Font GetFont(int nFont);
 };
 
 class ImGuiSurfaceFactory : public ra::ui::drawing::ISurfaceFactory
