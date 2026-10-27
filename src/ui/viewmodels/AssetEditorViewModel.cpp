@@ -20,11 +20,11 @@
 #include "util/EnumOps.hh"
 #include "util/Strings.hh"
 
-#include <rcheevos\src\runtime\rc_condset.h>
-#include <rcheevos\src\runtime\rc_eval_state.h>
-#include <rcheevos\src\runtime\rc_lboard.h>
-#include <rcheevos\src\runtime\rc_modified_memref.h>
-#include <rcheevos\src\runtime\rc_trigger.h>
+#include <rcheevos/src/runtime/rc_condset.h>
+#include <rcheevos/src/runtime/rc_eval_state.h>
+#include <rcheevos/src/runtime/rc_lboard.h>
+#include <rcheevos/src/runtime/rc_modified_memref.h>
+#include <rcheevos/src/runtime/rc_trigger.h>
 
 namespace ra {
 namespace ui {
@@ -136,7 +136,7 @@ void AssetEditorViewModel::SelectBadgeFile()
         ui::viewmodels::MessageBoxViewModel::ShowErrorMessage(ra::util::String::Printf(L"Could not read %s", pFileName));
         return;
     }
-    byte pHeader[16]{};
+    uint8_t pHeader[16]{};
     pFile->GetBytes(pHeader, sizeof(pHeader));
 
     auto sExtension = ra::util::String::Narrow(pFileSystemService.GetExtension(pFileName));

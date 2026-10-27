@@ -13,6 +13,11 @@
  #include <stdint.h>
 #endif
 
+/* Win32 handle and integer types used in public interfaces (opaque on other platforms) */
+#ifndef _WIN32
+ #include "posix_shims/wtypes.h"
+#endif
+
 /* SAL annotations */
 #define _In_
 #define _In_z_
@@ -61,7 +66,9 @@ inline int _wtoi(const wchar_t* sValue)
     return static_cast<int>(std::wcstol(sValue, nullptr, 10));
 }
 
+/* only the explicit-size overloads are used: (buffer, size, format, ...) */
 #define swprintf_s std::swprintf
+#define sprintf_s std::snprintf
 #endif /* __cplusplus */
 
 #endif /* !_MSC_VER */

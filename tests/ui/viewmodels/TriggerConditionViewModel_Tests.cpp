@@ -15,12 +15,12 @@
 #include "tests/devkit/testutil/RequirementAsserts.hh"
 #include "tests/mocks/MockGameContext.hh"
 
-#include <rcheevos\src\runtime\rc_condition.h>
-#include <rcheevos\src\runtime\rc_condset.h>
-#include <rcheevos\src\runtime\rc_eval_state.h>
-#include <rcheevos\src\runtime\rc_modified_memref.h>
-#include <rcheevos\src\runtime\rc_trigger.h>
-#include <rcheevos\src\runtime\rc_value.h>
+#include <rcheevos/src/runtime/rc_condition.h>
+#include <rcheevos/src/runtime/rc_condset.h>
+#include <rcheevos/src/runtime/rc_eval_state.h>
+#include <rcheevos/src/runtime/rc_modified_memref.h>
+#include <rcheevos/src/runtime/rc_trigger.h>
+#include <rcheevos/src/runtime/rc_value.h>
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 

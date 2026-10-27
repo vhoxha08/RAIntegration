@@ -9,7 +9,7 @@
 
 #include "ui/WindowViewModelBase.hh"
 
-#include <GSL\span>
+#include <GSL/span>
 
 namespace ra {
 namespace data {

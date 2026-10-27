@@ -13,6 +13,7 @@
 #pragma warning(push)
 #pragma warning(disable : 4091 4191 4365 4464 4571 4619 4623 4625 4626 4768 4774 5026 5027 5039 5045)
 /* Windows Stuff */
+#ifdef _WIN32
 #include "windows_nodefines.h"
 #include <ShlObj.h> // CommCtrl
 #include <WindowsX.h>
@@ -35,6 +36,7 @@
 */
 #undef CreateDirectory
 #undef GetMessage
+#endif /* _WIN32 */
 
 /* C Stuff */
 #include <cassert>
@@ -75,7 +77,7 @@
 #pragma warning(pop)
 
 #if RA_UTEST
- #include <CodeAnalysis\Warnings.h>
+ #include <CodeAnalysis/Warnings.h>
  #pragma warning(push)
   #pragma warning(disable : ALL_CPPCORECHECK_WARNINGS ALL_CODE_ANALYSIS_WARNINGS)
   #include "CppUnitTest.h"

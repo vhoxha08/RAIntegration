@@ -16,7 +16,7 @@
 #include "services/IThreadPool.hh"
 #include "services/ServiceLocator.hh"
 
-#include <rcheevos\include\rc_api_runtime.h>
+#include <rcheevos/include/rc_api_runtime.h>
 
 namespace ra {
 namespace ui {

@@ -6,8 +6,9 @@
 #include "data/models/AchievementModel.hh"
 
 #include <string>
+#include <thread>
 
-#include <rcheevos\include\rc_client.h>
+#include <rcheevos/include/rc_client.h>
 
 struct rc_api_fetch_game_sets_response_t;
 
@@ -102,7 +103,7 @@ public:
     void SetPaused(bool bValue) noexcept { m_bPaused = bValue; }
 
     void QueueMemoryRead(std::function<void()>&& fCallback) const;
-    bool IsOnDoFrameThread() const noexcept { return m_hDoFrameThread && GetCurrentThreadId() == m_hDoFrameThread; }
+    bool IsOnDoFrameThread() const noexcept { return m_hDoFrameThread != std::thread::id{} && std::this_thread::get_id() == m_hDoFrameThread; }
 
     class Synchronizer
     {
@@ -153,7 +154,7 @@ protected:
 
 private:
     bool m_bPaused = false;
-    DWORD m_hDoFrameThread = 0;
+    std::thread::id m_hDoFrameThread{};
 
     int m_nRichPresenceParseResult = RC_OK;
     int m_nRichPresenceErrorLine = 0;

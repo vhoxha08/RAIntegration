@@ -13,8 +13,8 @@
 #include "services/ILocalStorage.hh"
 #include "services/IThreadPool.hh"
 
-#include <rcheevos\include\rc_api_info.h>
-#include <rcheevos\include\rc_api_runtime.h>
+#include <rcheevos/include/rc_api_info.h>
+#include <rcheevos/include/rc_api_runtime.h>
 
 namespace ra {
 namespace ui {

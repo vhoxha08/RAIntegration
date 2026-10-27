@@ -8,12 +8,12 @@
 
 #include "ui/viewmodels/MessageBoxViewModel.hh"
 
-#include <rcheevos\src\runtime\rc_condition.h>
-#include <rcheevos\src\runtime\rc_condset.h>
-#include <rcheevos\src\runtime\rc_operand.h>
-#include <rcheevos\src\runtime\rc_trigger.h>
-#include <rcheevos\src\util\rc_version.h>
-#include <rcheevos\include\rc_api_runtime.h>
+#include <rcheevos/src/runtime/rc_condition.h>
+#include <rcheevos/src/runtime/rc_condset.h>
+#include <rcheevos/src/runtime/rc_operand.h>
+#include <rcheevos/src/runtime/rc_trigger.h>
+#include <rcheevos/src/util/rc_version.h>
+#include <rcheevos/include/rc_api_runtime.h>
 
 #include "tests/RA_UnitTestHelpers.h"
 #include "tests/data/DataAsserts.hh"

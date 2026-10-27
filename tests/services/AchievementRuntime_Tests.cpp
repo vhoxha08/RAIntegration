@@ -32,12 +32,12 @@
 #include "context/IRcClient.hh"
 #include "services/impl/OfflineRcClient.hh"
 
-#include <rcheevos\src\client\rc_client_internal.h>
-#include <rcheevos\src\runtime\rc_condset.h>
-#include <rcheevos\src\runtime\rc_lboard.h>
-#include <rcheevos\src\runtime\rc_modified_memref.h>
-#include <rcheevos\src\runtime\rc_parse_state.h>
-#include <rcheevos\src\runtime\rc_trigger.h>
+#include <rcheevos/src/client/rc_client_internal.h>
+#include <rcheevos/src/runtime/rc_condset.h>
+#include <rcheevos/src/runtime/rc_lboard.h>
+#include <rcheevos/src/runtime/rc_modified_memref.h>
+#include <rcheevos/src/runtime/rc_parse_state.h>
+#include <rcheevos/src/runtime/rc_trigger.h>
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 

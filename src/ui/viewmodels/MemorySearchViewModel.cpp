@@ -18,6 +18,9 @@
 
 #include "RA_Defs.h"
 
+#include <chrono>
+#include <thread>
+
 namespace ra {
 namespace ui {
 namespace viewmodels {
@@ -363,7 +366,7 @@ void MemorySearchViewModel::OnPredefinedFilterRangeChanged(const IntModelPropert
         // overwrite the change back to the old value.
         ra::services::ServiceLocator::GetMutable<ra::services::IThreadPool>().RunAsync([this, nOldValue = args.tOldValue]()
         {
-            Sleep(10); // ensure the other event has been fully handled
+            std::this_thread::sleep_for(std::chrono::milliseconds(10)); // ensure the other event has been fully handled
 
             // if the previous item was deleted, just select the all option
             if (m_vPredefinedFilterRanges.FindItemIndex(ra::ui::viewmodels::LookupItemViewModel::IdProperty, nOldValue) == -1)

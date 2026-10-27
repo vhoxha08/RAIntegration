@@ -4,7 +4,7 @@
 
 #include "util/Strings.hh"
 
-#if !(RA_EXPORTS || RA_UTEST)
+#if defined(_WIN32) && !(RA_EXPORTS || RA_UTEST)
 #include "windows_nodefines.h"
 #include <Windows.h>
 #include <WindowsX.h>
@@ -53,6 +53,7 @@ using namespace std::string_literals;
 #define SIZEOF_ARRAY( ar )  ( sizeof( ar ) / sizeof( ar[ 0 ] ) )
 #define SAFE_DELETE( x )    { if( x != nullptr ) { delete x; x = nullptr; } }
 
+#ifdef _WIN32
 //namespace RA
 //{
 class RARect : public RECT
@@ -159,6 +160,7 @@ public:
 
 //};
 //using namespace RA;
+#endif /* _WIN32 */
 
 namespace ra {
 bool ParseUnsignedInt(const std::wstring& sValue, unsigned int nMaximumValue, _Out_ unsigned int& nValue, _Out_ std::wstring& sError);

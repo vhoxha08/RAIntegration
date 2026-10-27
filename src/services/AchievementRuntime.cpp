@@ -37,14 +37,14 @@
 #include "ui/viewmodels/UnknownGameViewModel.hh"
 #include "ui/viewmodels/WindowManager.hh"
 
-#include <rcheevos\include\rc_api_runtime.h>
-#include <rcheevos\src\client\rc_client_internal.h>
-#include <rcheevos\src\runtime\rc_condition.h>
-#include <rcheevos\src\runtime\rc_condset.h>
-#include <rcheevos\src\runtime\rc_lboard.h>
-#include <rcheevos\src\runtime\rc_memref.h>
-#include <rcheevos\src\runtime\rc_parse_state.h>
-#include <rcheevos\src\runtime\rc_trigger.h>
+#include <rcheevos/include/rc_api_runtime.h>
+#include <rcheevos/src/client/rc_client_internal.h>
+#include <rcheevos/src/runtime/rc_condition.h>
+#include <rcheevos/src/runtime/rc_condset.h>
+#include <rcheevos/src/runtime/rc_lboard.h>
+#include <rcheevos/src/runtime/rc_memref.h>
+#include <rcheevos/src/runtime/rc_parse_state.h>
+#include <rcheevos/src/runtime/rc_trigger.h>
 
 namespace ra {
 namespace services {
@@ -266,7 +266,7 @@ void AchievementRuntime::QueueMemoryRead(std::function<void()>&& fCallback) cons
         return;
     }
 
-    if (m_hDoFrameThread == 0 || IsOnDoFrameThread())
+    if (m_hDoFrameThread == std::thread::id{} || IsOnDoFrameThread())
     {
         fCallback();
         return;
@@ -920,7 +920,7 @@ void AchievementRuntime::DoFrame()
 {
     auto* pClient = ra::services::ServiceLocator::Get<ra::context::IRcClient>().GetClient();
 
-    m_hDoFrameThread = GetCurrentThreadId();
+    m_hDoFrameThread = std::this_thread::get_id();
 
     if (m_bPaused)
     {

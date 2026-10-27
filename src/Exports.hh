@@ -2,11 +2,19 @@
 #define RA_EXPORTS_H
 #pragma once
 
-#ifndef CCONV
-#define CCONV __cdecl
-#endif
+#ifdef _WIN32
+ #ifndef CCONV
+ #define CCONV __cdecl
+ #endif
 
-#define API __declspec(dllexport)
+ #define API __declspec(dllexport)
+#else
+ #ifndef CCONV
+ #define CCONV
+ #endif
+
+ #define API __attribute__((visibility("default")))
+#endif
 
 #ifdef __cplusplus
 extern "C" {

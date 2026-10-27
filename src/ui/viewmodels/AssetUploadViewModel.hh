@@ -9,6 +9,9 @@
 #include "data/models/LeaderboardModel.hh"
 #include "data/models/RichPresenceModel.hh"
 
+#include <chrono>
+#include <thread>
+
 namespace ra {
 namespace ui {
 namespace viewmodels {
@@ -36,7 +39,7 @@ protected:
     {
         // sleep 500-1500ms to allow server to stop throttling us.
         // stagger value so we don't slam it in batches.
-        Sleep(rand() % 1000 + 500);
+        std::this_thread::sleep_for(std::chrono::milliseconds(rand() % 1000 + 500));
     }
 
 private:

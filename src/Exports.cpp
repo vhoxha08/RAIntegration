@@ -43,9 +43,9 @@
 #include "ui/win32/OverlayWindow.hh"
 #include "ui/win32/bindings/ControlBinding.hh"
 
-#include <RAInterface\RA_Emulators.h>
+#include <RAInterface/RA_Emulators.h>
 
-#include <rcheevos\src\client\rc_client_internal.h>
+#include <rcheevos/src/client/rc_client_internal.h>
 
 API const char* CCONV _RA_IntegrationVersion() { return RA_INTEGRATION_VERSION; }
 

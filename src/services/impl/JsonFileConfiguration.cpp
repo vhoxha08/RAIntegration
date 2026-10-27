@@ -7,9 +7,9 @@
 #include "services/IFileSystem.hh"
 #include "services/ServiceLocator.hh"
 
-#include <rcheevos\src\api\rc_api_common.h>
+#include <rcheevos/src/api/rc_api_common.h>
 
-#ifndef RA_UTEST
+#if defined(_WIN32) && !defined(RA_UTEST)
 #include "services/impl/StringTextWriter.hh"
 #include "services/impl/WindowsHttpRequester.hh"
 #include "ui/win32/Desktop.hh"
@@ -326,7 +326,7 @@ void JsonFileConfiguration::UpdateHost()
         m_bCustomHost = false;
         m_sHostUrl = rc_api_default_host();
 
-#ifndef RA_UTEST
+#if defined(_WIN32) && !defined(RA_UTEST)
         const auto sOSVersion = ra::ui::win32::Desktop::GetWindowsVersionString();
         if (ra::util::String::StartsWith(sOSVersion, "WindowsNT "))
         {

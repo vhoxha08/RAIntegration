@@ -8,6 +8,8 @@
 
 #include "util/GSL.hh"
 
+#include <thread>
+
 namespace ra {
 namespace services {
 namespace impl {
