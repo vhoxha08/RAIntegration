@@ -366,7 +366,7 @@ static bool DoUpload(const std::string& sHost, const char* _RESTRICT sApiName, c
 static void HttpResponseToServerResponse(const ra::services::Http::Response& httpResponse,
                                          rc_api_server_response_t* server_response) noexcept
 {
-    memset(server_response, 0, sizeof(server_response));
+    memset(server_response, 0, sizeof(*server_response));
     server_response->body = httpResponse.Content().c_str();
     server_response->body_length = httpResponse.Content().length();
     server_response->http_status_code = ra::etoi(httpResponse.StatusCode());
