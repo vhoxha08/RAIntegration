@@ -2,6 +2,7 @@
 #define RA_UI_PLATFORM_UI_HH
 #pragma once
 
+#include <functional>
 #include <memory>
 
 namespace ra {
@@ -30,6 +31,17 @@ public:
     /// from the thread that initialized the integration.
     /// </summary>
     static void ProcessPendingActions();
+
+    /// <summary>
+    /// Draws the toolkit's windows. Called by the host inside its Dear ImGui frame (no-op without a GUI backend).
+    /// </summary>
+    static void Render();
+
+    /// <summary>
+    /// Sets how modal windows block: the handler must keep pumping events and redrawing (calling Render and
+    /// ProcessPendingActions) until fIsOpen returns false. Without a handler modal windows are declined.
+    /// </summary>
+    static void SetModalLoopHandler(std::function<void(const std::function<bool()>& fIsOpen)> fHandler);
 
     /// <summary>
     /// Releases backend resources. Called from Initialization::Shutdown before the services are torn down.

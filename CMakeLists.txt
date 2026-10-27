@@ -175,6 +175,22 @@ if(NOT WIN32)
   target_link_libraries(RAHeadlessSmoke PRIVATE RAIntegrationHeadless)
   target_precompile_headers(RAHeadlessSmoke REUSE_FROM RAIntegrationCore)
   ra_apply_compat(RAHeadlessSmoke)
+
+  # UI backend that draws the toolkit's windows with Dear ImGui inside the host's window. Built when the host
+  # project provides an "imgui" target (Dear ImGui with misc/cpp/imgui_stdlib), so both share one ImGui context.
+  if(TARGET imgui)
+    add_library(RAIntegrationImGui STATIC
+      src/ui/headless/HeadlessDesktop.cpp
+      src/ui/headless/HeadlessImageRepository.cpp
+      src/ui/imgui/ImGuiDesktop.cpp
+      src/ui/imgui/LoginView.cpp
+      src/ui/imgui/MessageBoxView.cpp
+      src/ui/imgui/PlatformUi.cpp
+    )
+    target_link_libraries(RAIntegrationImGui PUBLIC RAIntegrationCore imgui)
+    target_precompile_headers(RAIntegrationImGui REUSE_FROM RAIntegrationCore)
+    ra_apply_compat(RAIntegrationImGui)
+  endif()
 endif()
 
 # ---- unit tests ---------------------------------------------------------------

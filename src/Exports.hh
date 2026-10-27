@@ -161,6 +161,13 @@ extern "C" {
 
     // Sound playback. fpPlayFile receives the absolute path of a .wav file.
     API void CCONV _RA_SetAudioHandlers(void (*fpPlayFile)(const char* sUtf8Path), void (*fpBeep)(void));
+
+    // Draws the toolkit's windows. Call inside the host's Dear ImGui frame (when built with the ImGui backend).
+    API void CCONV _RA_RenderImGui();
+
+    // How modal windows block: fpRunModalLoop must keep pumping events and redrawing (calling _RA_RenderImGui and
+    // _RA_ProcessUIThreadActions) until fpIsOpen(pIsOpenData) returns 0.
+    API void CCONV _RA_SetModalLoopHandler(void (*fpRunModalLoop)(int (*fpIsOpen)(void*), void* pIsOpenData));
 #endif
 
 #ifdef __cplusplus

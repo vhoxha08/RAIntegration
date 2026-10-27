@@ -138,6 +138,11 @@ void HeadlessDesktop::InvokeOnUIThread(std::function<void()> fAction) const
         return;
     }
 
+    PostToUIThread(std::move(fAction));
+}
+
+void HeadlessDesktop::PostToUIThread(std::function<void()> fAction) const
+{
     std::lock_guard<std::mutex> lock(m_pMutex);
     m_vPendingActions.push_back(std::move(fAction));
 }

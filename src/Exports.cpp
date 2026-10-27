@@ -745,4 +745,33 @@ API void CCONV _RA_SetAudioHandlers(void (*fpPlayFile)(const char* sUtf8Path), v
         fpBeep ? ra::services::impl::HostAudioSystem::BeepHandler([fpBeep]() { fpBeep(); }) : nullptr);
 }
 
+API void CCONV _RA_RenderImGui()
+{
+    ra::ui::PlatformUi::Render();
+}
+
+struct ModalLoopState
+{
+    const std::function<bool()>* fIsOpen;
+};
+
+static int IsModalOpen(void* pData)
+{
+    return (*static_cast<ModalLoopState*>(pData)->fIsOpen)() ? 1 : 0;
+}
+
+API void CCONV _RA_SetModalLoopHandler(void (*fpRunModalLoop)(int (*fpIsOpen)(void*), void* pIsOpenData))
+{
+    if (fpRunModalLoop == nullptr)
+    {
+        ra::ui::PlatformUi::SetModalLoopHandler(nullptr);
+        return;
+    }
+
+    ra::ui::PlatformUi::SetModalLoopHandler([fpRunModalLoop](const std::function<bool()>& fIsOpen) {
+        ModalLoopState pState{&fIsOpen};
+        fpRunModalLoop(IsModalOpen, &pState);
+    });
+}
+
 #endif

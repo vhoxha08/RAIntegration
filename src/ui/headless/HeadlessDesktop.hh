@@ -41,6 +41,12 @@ public:
     void InvokeOnUIThread(std::function<void()> fAction) const override;
 
     /// <summary>
+    /// Queues an action to run on the UI thread, even when called from the UI thread (so it runs outside the
+    /// current frame).
+    /// </summary>
+    void PostToUIThread(std::function<void()> fAction) const;
+
+    /// <summary>
     /// Runs the actions queued by InvokeOnUIThread. Must be called from the UI thread.
     /// </summary>
     void ProcessPendingActions();

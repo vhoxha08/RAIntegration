@@ -35,6 +35,14 @@ void PlatformUi::ProcessPendingActions()
         pDesktop->ProcessPendingActions();
 }
 
+void PlatformUi::Render()
+{
+}
+
+void PlatformUi::SetModalLoopHandler(std::function<void(const std::function<bool()>&)>)
+{
+}
+
 void PlatformUi::Shutdown()
 {
 }
