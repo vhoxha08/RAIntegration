@@ -86,6 +86,37 @@ ImGuiSurface::Op& ImGuiSurface::AddOp(OpType nType, int nX, int nY, int nWidth, 
     return pOp;
 }
 
+void ImGuiSurface::AddOp(Op&& pOp)
+{
+    if (pOp.nType == OpType::Rectangle && pOp.fAlpha >= 1.0f && (pOp.nColor >> 24) == 0xFF)
+        RemoveCoveredOps(pOp);
+
+    m_vOps.push_back(std::move(pOp));
+}
+
+void ImGuiSurface::RemoveCoveredOps(const Op& pOpaqueOp)
+{
+    // Views like the memory viewer draw once and then only repaint what changed, each repaint starting with an
+    // opaque background. Drop what such a fill hides so the recording doesn't grow with every repaint.
+    const float fLeft = std::max(pOpaqueOp.fX, pOpaqueOp.fClipLeft);
+    const float fTop = std::max(pOpaqueOp.fY, pOpaqueOp.fClipTop);
+    const float fRight = std::min(pOpaqueOp.fX + pOpaqueOp.fWidth, pOpaqueOp.fClipRight);
+    const float fBottom = std::min(pOpaqueOp.fY + pOpaqueOp.fHeight, pOpaqueOp.fClipBottom);
+    if (fLeft >= fRight || fTop >= fBottom)
+        return;
+
+    m_vOps.erase(std::remove_if(m_vOps.begin(), m_vOps.end(),
+                                [fLeft, fTop, fRight, fBottom](const Op& pOp) {
+                                    const float fOpLeft = std::max(pOp.fX, pOp.fClipLeft);
+                                    const float fOpTop = std::max(pOp.fY, pOp.fClipTop);
+                                    const float fOpRight = std::min(pOp.fX + pOp.fWidth, pOp.fClipRight);
+                                    const float fOpBottom = std::min(pOp.fY + pOp.fHeight, pOp.fClipBottom);
+                                    return fOpLeft >= fLeft && fOpTop >= fTop && fOpRight <= fRight &&
+                                           fOpBottom <= fBottom;
+                                }),
+                 m_vOps.end());
+}
+
 float ImGuiSurface::GetAlpha(Color nColor) const noexcept
 {
     // like GDI, only surfaces created as transparent honor the alpha channel
@@ -103,9 +134,21 @@ void ImGuiSurface::FillRectangle(int nX, int nY, int nWidth, int nHeight, Color 
         return;
     }
 
-    Op& pOp = AddOp(OpType::Rectangle, nX, nY, nWidth, nHeight);
+    Op pOp;
+    pOp.nType = OpType::Rectangle;
+    pOp.fX = static_cast<float>(nX);
+    pOp.fY = static_cast<float>(nY);
+    pOp.fWidth = static_cast<float>(nWidth);
+    pOp.fHeight = static_cast<float>(nHeight);
+    pOp.fClipLeft = 0.0f;
+    pOp.fClipTop = 0.0f;
+    pOp.fClipRight = static_cast<float>(m_nWidth);
+    pOp.fClipBottom = static_cast<float>(m_nHeight);
     pOp.nColor = nColor.ARGB;
     pOp.fAlpha = GetAlpha(nColor);
+    if (!m_bTransparent)
+        pOp.nColor |= 0xFF000000; // opaque surfaces ignore the alpha channel
+    AddOp(std::move(pOp));
 }
 
 int ImGuiSurface::LoadFont([[maybe_unused]] const std::string& sFont, int nFontSize, FontStyles nStyle)
@@ -220,7 +263,7 @@ void ImGuiSurface::DrawSurface(int nX, int nY, const ISurface& pSurface, int nSu
         pOp.fClipRight = std::min(pOp.fClipRight + fOffsetX, fRight);
         pOp.fClipBottom = std::min(pOp.fClipBottom + fOffsetY, fBottom);
         if (pOp.fClipLeft < pOp.fClipRight && pOp.fClipTop < pOp.fClipBottom)
-            m_vOps.push_back(std::move(pOp));
+            AddOp(std::move(pOp));
     }
 }
 

@@ -4,6 +4,7 @@
 #include "ui/imgui/GameChecksumView.hh"
 #include "ui/imgui/ImGuiSurface.hh"
 #include "ui/imgui/LoginView.hh"
+#include "ui/imgui/MemoryInspectorView.hh"
 #include "ui/imgui/OverlaySettingsView.hh"
 #include "ui/imgui/RichPresenceView.hh"
 #include "ui/imgui/UnknownGameView.hh"
@@ -18,6 +19,7 @@
 
 #include <imgui.h>
 
+#include <algorithm>
 #include <condition_variable>
 #include <mutex>
 
@@ -60,6 +62,9 @@ std::unique_ptr<ImGuiWindowView> ImGuiDesktop::CreateView(WindowViewModelBase& v
 
     if (auto* vmBroken = dynamic_cast<ra::ui::viewmodels::BrokenAchievementsViewModel*>(&vmViewModel))
         return std::make_unique<BrokenAchievementsView>(*vmBroken);
+
+    if (auto* vmMemoryInspector = dynamic_cast<ra::ui::viewmodels::MemoryInspectorViewModel*>(&vmViewModel))
+        return std::make_unique<MemoryInspectorView>(*vmMemoryInspector);
 
     return nullptr;
 }
@@ -261,7 +266,10 @@ void ImGuiDesktop::Render() const
             const ImVec2 vSize = pView.GetInitialSize();
             if (vSize.x > 0.0f)
             {
-                ImGui::SetNextWindowSize(vSize, ImGuiCond_Appearing);
+                // keep new windows within the game area
+                const ImVec2 vMaxSize(pViewport->WorkSize.x - 40.0f, pViewport->WorkSize.y - 40.0f);
+                ImGui::SetNextWindowSize(ImVec2(std::min(vSize.x, vMaxSize.x), std::min(vSize.y, vMaxSize.y)),
+                                         ImGuiCond_Appearing);
             }
             else
             {

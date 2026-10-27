@@ -414,6 +414,11 @@ public:
     unsigned int GetScrollOffset() const { return gsl::narrow_cast<unsigned int>(GetValue(ScrollOffsetProperty)); }
 
     /// <summary>
+    /// Sets the scroll offset (the index of the first result in <see cref="Results" />).
+    /// </summary>
+    void SetScrollOffset(unsigned int nValue) { SetValue(ScrollOffsetProperty, gsl::narrow_cast<int>(nValue)); }
+
+    /// <summary>
     /// The <see cref="ModelProperty" /> for the scroll maximum.
     /// </summary>
     static const IntModelProperty ScrollMaximumProperty;
@@ -445,29 +450,36 @@ public:
     /// </summary>
     void NextPage();
     static const BoolModelProperty CanGoToNextPageProperty;
+    bool CanGoToNextPage() const { return GetValue(CanGoToNextPageProperty); }
 
     /// <summary>
     /// Returns to the previous page of results (if available).
     /// </summary>
     void PreviousPage();
     static const BoolModelProperty CanGoToPreviousPageProperty;
+    bool CanGoToPreviousPage() const { return GetValue(CanGoToPreviousPageProperty); }
 
     /// <summary>
     /// Starts a new search.
     /// </summary>
     void BeginNewSearch();
     static const BoolModelProperty CanBeginNewSearchProperty;
+    bool CanBeginNewSearch() const { return GetValue(CanBeginNewSearchProperty); }
 
     /// <summary>
     /// Applies the current filter.
     /// </summary>
     void ApplyFilter();
     static const BoolModelProperty CanFilterProperty;
+    bool CanFilter() const { return GetValue(CanFilterProperty); }
     static const BoolModelProperty CanEditFilterValueProperty;
+    bool IsFilterValueEditable() const { return GetValue(CanEditFilterValueProperty); }
 
     void ToggleContinuousFilter();
     static const BoolModelProperty CanContinuousFilterProperty;
+    bool CanContinuousFilter() const { return GetValue(CanContinuousFilterProperty); }
     static const StringModelProperty ContinuousFilterLabelProperty;
+    const std::wstring& GetContinuousFilterLabel() const { return GetValue(ContinuousFilterLabelProperty); }
     bool IsContinuousFiltering() const noexcept { return m_bIsContinuousFiltering; }
 
     /// <summary>

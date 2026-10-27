@@ -77,6 +77,8 @@ private:
     };
 
     Op& AddOp(OpType nType, int nX, int nY, int nWidth, int nHeight);
+    void AddOp(Op&& pOp);
+    void RemoveCoveredOps(const Op& pOpaqueOp);
     float GetAlpha(Color nColor) const noexcept;
 
     int m_nWidth;

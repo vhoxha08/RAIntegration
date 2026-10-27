@@ -1,52 +1,34 @@
 #include "ImGuiControls.hh"
 
-#include "ui/imgui/ImGuiWindowView.hh"
-
-#include <imgui.h>
+#include <imgui_internal.h>
+#include <misc/cpp/imgui_stdlib.h>
 
 #include <algorithm>
+#include <unordered_map>
 
 namespace ra {
 namespace ui {
 namespace imgui {
 
-bool LookupCombo(const char* sId, const ra::ui::viewmodels::LookupItemViewModelCollection& vItems, int& nSelectedId)
+bool BoundInputText(const char* sId, const std::wstring& sValue, std::wstring& sNewValue, ImGuiInputTextFlags nFlags,
+                    const ImVec2& vSize)
 {
-    std::string sPreview;
-    for (const auto& pItem : vItems)
-    {
-        if (pItem.GetId() == nSelectedId)
-        {
-            sPreview = ToUtf8(pItem.GetLabel());
-            break;
-        }
-    }
+    // ImGui keeps its own copy of the text while a text box is being edited; the buffer only has to outlive the
+    // call. Refresh it from the view model whenever the user isn't editing it.
+    static std::unordered_map<ImGuiID, std::string> s_mBuffers;
 
-    bool bChanged = false;
-    if (ImGui::BeginCombo(sId, sPreview.c_str()))
-    {
-        for (gsl::index i = 0; i < gsl::narrow_cast<gsl::index>(vItems.Count()); ++i)
-        {
-            const auto* pItem = vItems.GetItemAt(i);
-            if (pItem == nullptr)
-                continue;
+    const ImGuiID nId = ImGui::GetID(sId);
+    auto& sBuffer = s_mBuffers[nId];
+    if (ImGui::GetActiveID() != nId)
+        sBuffer = ToUtf8(sValue);
 
-            const bool bSelected = (pItem->GetId() == nSelectedId);
-            ImGui::PushID(gsl::narrow_cast<int>(i));
-            if (ImGui::Selectable(ToUtf8(pItem->GetLabel()).c_str(), bSelected) && !bSelected)
-            {
-                nSelectedId = pItem->GetId();
-                bChanged = true;
-            }
-            if (bSelected)
-                ImGui::SetItemDefaultFocus();
-            ImGui::PopID();
-        }
+    const bool bChanged = (vSize.y > 0.0f) ? ImGui::InputTextMultiline(sId, &sBuffer, vSize, nFlags)
+                                           : ImGui::InputText(sId, &sBuffer, nFlags);
+    if (!bChanged)
+        return false;
 
-        ImGui::EndCombo();
-    }
-
-    return bChanged;
+    sNewValue = FromUtf8(sBuffer);
+    return true;
 }
 
 bool IsEscapePressed()
@@ -58,8 +40,17 @@ void AlignButtonsRight(int nButtons, float fButtonWidth)
 {
     const float fWidth = fButtonWidth * static_cast<float>(nButtons) +
                          ImGui::GetStyle().ItemSpacing.x * static_cast<float>(nButtons - 1);
+
     // never move left: in auto-sized windows the content region is only as wide as the previous frame's content
     ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), ImGui::GetContentRegionMax().x - fWidth));
+}
+
+ImU32 ToImGuiColor(uint32_t nARGB)
+{
+    if ((nARGB >> 24) == 0)
+        return 0;
+
+    return IM_COL32((nARGB >> 16) & 0xFF, (nARGB >> 8) & 0xFF, nARGB & 0xFF, nARGB >> 24);
 }
 
 } // namespace imgui

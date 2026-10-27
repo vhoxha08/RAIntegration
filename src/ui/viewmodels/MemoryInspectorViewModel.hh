@@ -63,6 +63,11 @@ public:
     /// </summary>
     const std::wstring& GetCurrentAddressText() const { return GetValue(CurrentAddressTextProperty); }
 
+    /// <summary>
+    /// Sets the current address as a string (as typed by the user).
+    /// </summary>
+    void SetCurrentAddressText(const std::wstring& sValue) { SetValue(CurrentAddressTextProperty, sValue); }
+
     void BookmarkCurrentAddress() const;
     std::string GetCurrentAddressMemRefChain() const;
 
@@ -162,6 +167,7 @@ public:
     /// The <see cref="ModelProperty" /> for whether or not the CurrentBits should be visible.
     /// </summary>
     static const BoolModelProperty CurrentBitsVisibleProperty;
+    bool AreCurrentBitsVisible() const { return GetValue(CurrentBitsVisibleProperty); }
 
     void ToggleBit(int nBit);
 

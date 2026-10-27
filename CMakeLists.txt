@@ -189,6 +189,8 @@ if(NOT WIN32)
       src/ui/imgui/ImGuiImageRepository.cpp
       src/ui/imgui/ImGuiSurface.cpp
       src/ui/imgui/LoginView.cpp
+      src/ui/imgui/MemoryInspectorView.cpp
+      src/ui/imgui/MemoryViewerWidget.cpp
       src/ui/imgui/MessageBoxView.cpp
       src/ui/imgui/OverlaySettingsView.cpp
       src/ui/imgui/RichPresenceView.cpp
