@@ -51,6 +51,11 @@
 #define strncasecmp strncasecmp
 #define strdup strdup
 
+/* Likewise, without __STDC_SECURE_LIB__ it maps strcpy_s to an unbounded strcpy macro, which
+ * also breaks the two-argument array overload. Provide bounded versions below instead.
+ * (Only rcheevos' C sources, which do not see this header, otherwise test this macro.) */
+#define __STDC_SECURE_LIB__ 200411L
+
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
@@ -95,6 +100,32 @@ inline int _putenv(const char* sAssignment)
 }
 
 #define _tzset tzset
+
+/* bounded copy; on overflow, empties the destination and reports ERANGE like the MS CRT */
+inline int strcpy_s(char* sDest, size_t nDestSize, const char* sSource)
+{
+    if (!sDest || nDestSize == 0)
+        return EINVAL;
+    if (!sSource)
+    {
+        sDest[0] = '\0';
+        return EINVAL;
+    }
+    const size_t nLength = std::strlen(sSource);
+    if (nLength >= nDestSize)
+    {
+        sDest[0] = '\0';
+        return ERANGE;
+    }
+    std::memcpy(sDest, sSource, nLength + 1);
+    return 0;
+}
+
+template<size_t N>
+inline int strcpy_s(char (&sDest)[N], const char* sSource)
+{
+    return strcpy_s(sDest, N, sSource);
+}
 
 /* only the explicit-size overloads are used: (buffer, size, format, ...) */
 #define swprintf_s std::swprintf

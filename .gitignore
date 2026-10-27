@@ -64,3 +64,4 @@ Thumbs.db
 *.ldf
 # CMake build tree
 /build/
+/build-*/

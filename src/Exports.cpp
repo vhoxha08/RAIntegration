@@ -33,15 +33,19 @@
 #include "services/impl/LoginService.hh"
 #include "services/impl/OfflineRcClient.hh"
 
+#ifdef _WIN32
 #include "ui/drawing/gdi/GDISurface.hh"
+#endif
 #include "ui/viewmodels/IntegrationMenuViewModel.hh"
 #include "ui/viewmodels/LoginViewModel.hh"
 #include "ui/viewmodels/MessageBoxViewModel.hh"
 #include "ui/viewmodels/OverlayManager.hh"
 #include "ui/viewmodels/WindowManager.hh"
+#ifdef _WIN32
 #include "ui/win32/Desktop.hh"
 #include "ui/win32/OverlayWindow.hh"
 #include "ui/win32/bindings/ControlBinding.hh"
+#endif
 
 #include <RAInterface/RA_Emulators.h>
 
@@ -257,6 +261,7 @@ API void CCONV _RA_InstallSharedFunctionsExt(bool(*)(void), void(*fpCauseUnpause
     pEmulatorContext.SetRebuildMenuFunction(fpRebuildMenu);
 }
 
+#ifdef _WIN32
 API HMENU CCONV _RA_CreatePopupMenu()
 {
     HMENU hMenu = CreatePopupMenu();
@@ -277,6 +282,7 @@ API HMENU CCONV _RA_CreatePopupMenu()
 
     return hMenu;
 }
+#endif
 
 API int CCONV _RA_GetPopupMenuItems(RA_MenuItem *pItems)
 {
@@ -435,8 +441,8 @@ API void CCONV _RA_InstallMemoryBank(int nBankID, void* pReader, void* pWriter, 
     if (pEmulatorMemoryContext)
     {
         pEmulatorMemoryContext->AddMemoryBlock(nBankID, nBankSize,
-            static_cast<ra::context::impl::EmulatorMemoryContext::MemoryReadFunction*>(pReader),
-            static_cast<ra::context::impl::EmulatorMemoryContext::MemoryWriteFunction*>(pWriter));
+            reinterpret_cast<ra::context::impl::EmulatorMemoryContext::MemoryReadFunction*>(pReader),
+            reinterpret_cast<ra::context::impl::EmulatorMemoryContext::MemoryWriteFunction*>(pWriter));
     }
 }
 
@@ -446,7 +452,7 @@ API void CCONV _RA_InstallMemoryBankBlockReader(int nBankID, void* pReader)
     if (pEmulatorMemoryContext)
     {
         pEmulatorMemoryContext->AddMemoryBlockReader(
-            nBankID, static_cast<ra::context::impl::EmulatorMemoryContext::MemoryReadBlockFunction*>(pReader));
+            nBankID, reinterpret_cast<ra::context::impl::EmulatorMemoryContext::MemoryReadBlockFunction*>(pReader));
     }
 }
 

@@ -15,6 +15,12 @@ typedef intptr_t LPARAM;
 typedef uintptr_t WPARAM;
 typedef unsigned char BYTE;
 typedef int BOOL;
+#ifndef TRUE
+ #define TRUE 1
+#endif
+#ifndef FALSE
+ #define FALSE 0
+#endif
 typedef uint32_t DWORD;
 typedef int32_t LONG;
 typedef const wchar_t* LPCWSTR;

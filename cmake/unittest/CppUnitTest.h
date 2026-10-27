@@ -66,7 +66,11 @@ struct __LineInfo
     int lineNumber;
 };
 
-#define LINE_INFO() &::Microsoft::VisualStudio::CppUnitTestFramework::__LineInfo{__FILE__, __func__, __LINE__}
+#define LINE_INFO() \
+    ([]() { \
+        static const ::Microsoft::VisualStudio::CppUnitTestFramework::__LineInfo pInfo{__FILE__, "", __LINE__}; \
+        return &pInfo; \
+    }())
 
 template<typename T>
 class TestClass

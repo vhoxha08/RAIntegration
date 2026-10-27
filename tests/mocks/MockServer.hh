@@ -92,7 +92,7 @@ public:
 
 protected:
     template<typename TApi>
-    inline auto HandleRequest(const ApiRequestBase& pRequest) const
+    inline typename TApi::Response HandleRequest(const ApiRequestBase& pRequest) const
     {
         typename TApi::Response response;
         std::string sApiName(TApi::Name());
