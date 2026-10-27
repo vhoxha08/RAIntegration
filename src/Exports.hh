@@ -146,6 +146,23 @@ extern "C" {
     API void CCONV _RA_NavigateOverlay(_In_ const ControllerInput* pInput);
     API int CCONV _RA_IsOverlayFullyVisible();
 
+#ifndef _WIN32
+    // Host integration for builds that link the toolkit statically (no DLL, no Win32 UI thread).
+
+    // Directory for RACache, Overlay and RAPrefs. Must be called before _RA_InitI/_RA_InitClient.
+    API void CCONV _RA_SetBaseDirectory(const char* sUtf8Path);
+
+    // Runs work that background threads queued for the UI thread. Call once per frame from the thread that
+    // initialized the toolkit.
+    API void CCONV _RA_ProcessUIThreadActions();
+
+    // Clipboard access. fpGetText returns UTF-8 text that stays valid until the next call.
+    API void CCONV _RA_SetClipboardHandlers(void (*fpSetText)(const char* sUtf8Text), const char* (*fpGetText)(void));
+
+    // Sound playback. fpPlayFile receives the absolute path of a .wav file.
+    API void CCONV _RA_SetAudioHandlers(void (*fpPlayFile)(const char* sUtf8Path), void (*fpBeep)(void));
+#endif
+
 #ifdef __cplusplus
 }
 #endif

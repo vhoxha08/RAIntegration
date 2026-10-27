@@ -16,8 +16,12 @@ find_package(Git QUIET)
 # ---- generated version header -------------------------------------------------
 set(RA_GENERATED_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated)
 file(MAKE_DIRECTORY ${RA_GENERATED_DIR})
+# The script runs git in the working directory, which may be inside a host project's repository when
+# RAIntegration is added with add_subdirectory(); point git at this repository explicitly.
 add_custom_target(RA_BuildVer
-  COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/RAInterface/MakeBuildVer.sh
+  COMMAND ${CMAKE_COMMAND} -E env
+          GIT_DIR=${CMAKE_CURRENT_SOURCE_DIR}/.git GIT_WORK_TREE=${CMAKE_CURRENT_SOURCE_DIR}
+          bash ${CMAKE_CURRENT_SOURCE_DIR}/RAInterface/MakeBuildVer.sh
           ${RA_GENERATED_DIR}/RA_BuildVer.h RAIntegration RA_INTEGRATION
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   BYPRODUCTS ${RA_GENERATED_DIR}/RA_BuildVer.h

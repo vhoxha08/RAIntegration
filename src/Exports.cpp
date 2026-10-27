@@ -696,3 +696,53 @@ API void CCONV _RA_RestoreState(const char* pBuffer)
         OnStateRestored();
     }
 }
+
+#if !defined(_WIN32) && !defined(RA_UTEST)
+
+#include "services/impl/HostAudioSystem.hh"
+#include "services/impl/HostClipboard.hh"
+#include "ui/PlatformUi.hh"
+
+API void CCONV _RA_SetBaseDirectory(const char* sUtf8Path)
+{
+    ra::services::Initialization::SetBaseDirectory(ra::util::String::Widen(sUtf8Path ? sUtf8Path : ""));
+}
+
+API void CCONV _RA_ProcessUIThreadActions()
+{
+    ra::ui::PlatformUi::ProcessPendingActions();
+}
+
+API void CCONV _RA_SetClipboardHandlers(void (*fpSetText)(const char* sUtf8Text), const char* (*fpGetText)(void))
+{
+    auto* pClipboard = dynamic_cast<ra::services::impl::HostClipboard*>(
+        &ra::services::ServiceLocator::GetMutable<ra::services::IClipboard>());
+    if (pClipboard == nullptr)
+        return;
+
+    pClipboard->SetHandlers(
+        fpSetText ? ra::services::impl::HostClipboard::SetTextHandler(
+                        [fpSetText](const std::string& sText) { fpSetText(sText.c_str()); })
+                  : nullptr,
+        fpGetText ? ra::services::impl::HostClipboard::GetTextHandler([fpGetText]() {
+                        const char* sText = fpGetText();
+                        return std::string(sText ? sText : "");
+                    })
+                  : nullptr);
+}
+
+API void CCONV _RA_SetAudioHandlers(void (*fpPlayFile)(const char* sUtf8Path), void (*fpBeep)(void))
+{
+    auto* pAudioSystem = dynamic_cast<ra::services::impl::HostAudioSystem*>(
+        &ra::services::ServiceLocator::GetMutable<ra::services::IAudioSystem>());
+    if (pAudioSystem == nullptr)
+        return;
+
+    pAudioSystem->SetHandlers(
+        fpPlayFile ? ra::services::impl::HostAudioSystem::PlayFileHandler(
+                         [fpPlayFile](const std::string& sPath) { fpPlayFile(sPath.c_str()); })
+                   : nullptr,
+        fpBeep ? ra::services::impl::HostAudioSystem::BeepHandler([fpBeep]() { fpBeep(); }) : nullptr);
+}
+
+#endif

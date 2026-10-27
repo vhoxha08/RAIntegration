@@ -26,6 +26,12 @@ public:
     static std::unique_ptr<IImageRepository> CreateImageRepository();
 
     /// <summary>
+    /// Runs work queued for the UI thread (IDesktop::InvokeOnUIThread). The host calls this once per frame
+    /// from the thread that initialized the integration.
+    /// </summary>
+    static void ProcessPendingActions();
+
+    /// <summary>
     /// Releases backend resources. Called from Initialization::Shutdown before the services are torn down.
     /// </summary>
     static void Shutdown();
