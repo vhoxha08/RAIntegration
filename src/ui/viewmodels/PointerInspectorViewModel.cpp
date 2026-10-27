@@ -2,17 +2,17 @@
 
 #include "RA_Defs.h"
 
-#include "context\IConsoleContext.hh"
-#include "context\IEmulatorMemoryContext.hh"
+#include "context/IConsoleContext.hh"
+#include "context/IEmulatorMemoryContext.hh"
 
-#include "data\models\PointerMemoryNoteModel.hh"
-#include "data\models\StructuredMemoryNoteModel.hh"
-#include "data\util\AchievementLogicSerializer.hh"
+#include "data/models/PointerMemoryNoteModel.hh"
+#include "data/models/StructuredMemoryNoteModel.hh"
+#include "data/util/AchievementLogicSerializer.hh"
 
-#include "services\IClipboard.hh"
-#include "services\ServiceLocator.hh"
+#include "services/IClipboard.hh"
+#include "services/ServiceLocator.hh"
 
-#include "ui\viewmodels\WindowManager.hh"
+#include "ui/viewmodels/WindowManager.hh"
 
 namespace ra {
 namespace ui {

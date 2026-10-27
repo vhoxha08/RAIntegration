@@ -6,6 +6,7 @@
 
 #include "util/Strings.hh"
 
+#include <filesystem>
 #include <fstream>
 
 namespace ra {
@@ -16,7 +17,7 @@ class FileTextWriter : public ra::services::TextWriter
 {
 public:
     explicit FileTextWriter(const std::wstring& sFilename, std::ios_base::openmode nMode = std::ios::out)
-        : m_oStream(sFilename, std::ios::binary | nMode)
+        : m_oStream(std::filesystem::path(sFilename), std::ios::binary | nMode)
     {
     }
 

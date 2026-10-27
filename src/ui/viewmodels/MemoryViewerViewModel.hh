@@ -2,13 +2,13 @@
 #define RA_UI_MEMORYVIEWERVIEWMODEL_H
 #pragma once
 
-#include "context\IEmulatorMemoryContext.hh"
+#include "context/IEmulatorMemoryContext.hh"
 
-#include "data\context\EmulatorContext.hh"
-#include "data\context\GameContext.hh"
+#include "data/context/EmulatorContext.hh"
+#include "data/context/GameContext.hh"
 
-#include "ui\ViewModelBase.hh"
-#include "ui\drawing\ISurface.hh"
+#include "ui/ViewModelBase.hh"
+#include "ui/drawing/ISurface.hh"
 
 namespace ra {
 namespace ui {

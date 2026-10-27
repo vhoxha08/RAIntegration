@@ -1,8 +1,8 @@
 #include "RA_UnitTestHelpers.h"
 
-#include "util\Strings.hh"
+#include "util/Strings.hh"
 
-#include "mocks\MockAudioSystem.hh"
+#include "mocks/MockAudioSystem.hh"
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 

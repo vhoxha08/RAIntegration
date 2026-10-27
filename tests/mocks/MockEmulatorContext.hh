@@ -2,12 +2,12 @@
 #define RA_DATA_MOCK_EMULATORCONTEXT_HH
 #pragma once
 
-#include "data\context\EmulatorContext.hh"
+#include "data/context/EmulatorContext.hh"
 
-#include "services\IConfiguration.hh"
-#include "services\ServiceLocator.hh"
+#include "services/IConfiguration.hh"
+#include "services/ServiceLocator.hh"
 
-#include "ui\WindowViewModelBase.hh"
+#include "ui/WindowViewModelBase.hh"
 
 #include <GSL\span>
 

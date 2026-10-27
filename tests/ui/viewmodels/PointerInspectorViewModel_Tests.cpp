@@ -1,16 +1,16 @@
 #include "CppUnitTest.h"
 
-#include "ui\viewmodels\PointerInspectorViewModel.hh"
+#include "ui/viewmodels/PointerInspectorViewModel.hh"
 
-#include "tests\devkit\context\mocks\MockConsoleContext.hh"
-#include "tests\devkit\context\mocks\MockDevKitContext.hh"
-#include "tests\devkit\context\mocks\MockEmulatorMemoryContext.hh"
-#include "tests\devkit\context\mocks\MockUserContext.hh"
-#include "tests\devkit\services\mocks\MockLocalStorage.hh"
-#include "tests\devkit\services\mocks\MockLogger.hh"
-#include "tests\devkit\testutil\MemoryAsserts.hh"
-#include "tests\mocks\MockClipboard.hh"
-#include "tests\mocks\MockGameContext.hh"
+#include "tests/devkit/context/mocks/MockConsoleContext.hh"
+#include "tests/devkit/context/mocks/MockDevKitContext.hh"
+#include "tests/devkit/context/mocks/MockEmulatorMemoryContext.hh"
+#include "tests/devkit/context/mocks/MockUserContext.hh"
+#include "tests/devkit/services/mocks/MockLocalStorage.hh"
+#include "tests/devkit/services/mocks/MockLogger.hh"
+#include "tests/devkit/testutil/MemoryAsserts.hh"
+#include "tests/mocks/MockClipboard.hh"
+#include "tests/mocks/MockGameContext.hh"
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 

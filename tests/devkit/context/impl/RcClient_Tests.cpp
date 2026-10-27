@@ -1,11 +1,11 @@
-#include "context\impl\RcClient.hh"
+#include "context/impl/RcClient.hh"
 
-#include "services\mocks\MockHttpRequester.hh"
-#include "services\mocks\MockLogger.hh"
-#include "services\mocks\MockLocalStorage.hh"
-#include "services\mocks\MockThreadPool.hh"
+#include "services/mocks/MockHttpRequester.hh"
+#include "services/mocks/MockLogger.hh"
+#include "services/mocks/MockLocalStorage.hh"
+#include "services/mocks/MockThreadPool.hh"
 
-#include "testutil\CppUnitTest.hh"
+#include "testutil/CppUnitTest.hh"
 
 namespace ra {
 namespace context {

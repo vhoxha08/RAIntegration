@@ -2,7 +2,7 @@
 #define RA_DEFS_H
 #pragma once
 
-#include "util\Strings.hh"
+#include "util/Strings.hh"
 
 #if !(RA_EXPORTS || RA_UTEST)
 #include "windows_nodefines.h"
@@ -26,14 +26,14 @@
 //	Version Information is integrated into tags
 #else
 
-#include "util\Log.hh"
+#include "util/Log.hh"
 
 //	RA-Only
 using namespace std::string_literals;
 #endif	// RA_EXPORTS
 
-#include "data\Types.hh"
-#include "data\Memory.hh"
+#include "data/Types.hh"
+#include "data/Memory.hh"
 
 #define RA_DIR_OVERLAY                  L"Overlay\\"
 #define RA_DIR_BASE                     L"RACache\\"

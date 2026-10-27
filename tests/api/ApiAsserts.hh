@@ -2,7 +2,7 @@
 #define RA_UNITTEST_APIHELPERS_H
 #pragma once
 
-#include "api\ApiCall.hh"
+#include "api/ApiCall.hh"
 
 namespace Microsoft {
 namespace VisualStudio {

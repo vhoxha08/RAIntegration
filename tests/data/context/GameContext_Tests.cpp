@@ -1,12 +1,12 @@
 #include "CppUnitTest.h"
 
-#include "data\context\GameContext.hh"
+#include "data/context/GameContext.hh"
 
-#include "data\models\AchievementModel.hh"
+#include "data/models/AchievementModel.hh"
 
-#include "services\AchievementRuntime.hh"
+#include "services/AchievementRuntime.hh"
 
-#include "ui\viewmodels\MessageBoxViewModel.hh"
+#include "ui/viewmodels/MessageBoxViewModel.hh"
 
 #include <rcheevos\src\runtime\rc_condition.h>
 #include <rcheevos\src\runtime\rc_condset.h>
@@ -15,33 +15,33 @@
 #include <rcheevos\src\util\rc_version.h>
 #include <rcheevos\include\rc_api_runtime.h>
 
-#include "tests\RA_UnitTestHelpers.h"
-#include "tests\data\DataAsserts.hh"
-#include "tests\ui\UIAsserts.hh"
+#include "tests/RA_UnitTestHelpers.h"
+#include "tests/data/DataAsserts.hh"
+#include "tests/ui/UIAsserts.hh"
 
-#include "tests\devkit\context\mocks\MockConsoleContext.hh"
-#include "tests\devkit\context\mocks\MockDevKitContext.hh"
-#include "tests\devkit\context\mocks\MockEmulatorMemoryContext.hh"
-#include "tests\devkit\context\mocks\MockRcClient.hh"
-#include "tests\devkit\context\mocks\MockUserContext.hh"
-#include "tests\devkit\services\mocks\MockClock.hh"
-#include "tests\devkit\services\mocks\MockConfiguration.hh"
-#include "tests\devkit\services\mocks\MockLocalStorage.hh"
-#include "tests\devkit\services\mocks\MockMessageDispatcher.hh"
-#include "tests\devkit\services\mocks\MockThreadPool.hh"
-#include "tests\devkit\testutil\AchievementSetAsserts.hh"
-#include "tests\devkit\testutil\AssetAsserts.hh"
-#include "tests\devkit\ui\mocks\MockImageRepository.hh"
-#include "tests\mocks\MockAchievementRuntime.hh"
-#include "tests\mocks\MockAudioSystem.hh"
-#include "tests\mocks\MockEmulatorContext.hh"
-#include "tests\mocks\MockDesktop.hh"
-#include "tests\mocks\MockFrameEventQueue.hh"
-#include "tests\mocks\MockGameContext.hh"
-#include "tests\mocks\MockOverlayManager.hh"
-#include "tests\mocks\MockServer.hh"
-#include "tests\mocks\MockSessionTracker.hh"
-#include "tests\mocks\MockWindowManager.hh"
+#include "tests/devkit/context/mocks/MockConsoleContext.hh"
+#include "tests/devkit/context/mocks/MockDevKitContext.hh"
+#include "tests/devkit/context/mocks/MockEmulatorMemoryContext.hh"
+#include "tests/devkit/context/mocks/MockRcClient.hh"
+#include "tests/devkit/context/mocks/MockUserContext.hh"
+#include "tests/devkit/services/mocks/MockClock.hh"
+#include "tests/devkit/services/mocks/MockConfiguration.hh"
+#include "tests/devkit/services/mocks/MockLocalStorage.hh"
+#include "tests/devkit/services/mocks/MockMessageDispatcher.hh"
+#include "tests/devkit/services/mocks/MockThreadPool.hh"
+#include "tests/devkit/testutil/AchievementSetAsserts.hh"
+#include "tests/devkit/testutil/AssetAsserts.hh"
+#include "tests/devkit/ui/mocks/MockImageRepository.hh"
+#include "tests/mocks/MockAchievementRuntime.hh"
+#include "tests/mocks/MockAudioSystem.hh"
+#include "tests/mocks/MockEmulatorContext.hh"
+#include "tests/mocks/MockDesktop.hh"
+#include "tests/mocks/MockFrameEventQueue.hh"
+#include "tests/mocks/MockGameContext.hh"
+#include "tests/mocks/MockOverlayManager.hh"
+#include "tests/mocks/MockServer.hh"
+#include "tests/mocks/MockSessionTracker.hh"
+#include "tests/mocks/MockWindowManager.hh"
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 

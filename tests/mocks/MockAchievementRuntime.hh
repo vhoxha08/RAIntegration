@@ -2,12 +2,12 @@
 #define RA_SERVICES_MOCK_ACHIEVEMENT_RUNTIME_HH
 #pragma once
 
-#include "context\IRcClient.hh"
+#include "context/IRcClient.hh"
 
-#include "services\AchievementRuntime.hh"
-#include "services\ServiceLocator.hh"
+#include "services/AchievementRuntime.hh"
+#include "services/ServiceLocator.hh"
 
-#include "tests\devkit\testutil\CppUnitTest.hh"
+#include "tests/devkit/testutil/CppUnitTest.hh"
 
 #include <rcheevos\src\client\rc_client_internal.h>
 

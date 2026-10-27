@@ -1,20 +1,20 @@
 #include "TriggerConditionViewModel.hh"
 
 #include "RA_Defs.h"
-#include "util\Strings.hh"
+#include "util/Strings.hh"
 
-#include "context\IEmulatorMemoryContext.hh"
+#include "context/IEmulatorMemoryContext.hh"
 
-#include "data\context\GameContext.hh"
-#include "data\models\ValueMemoryNoteModel.hh"
-#include "data\util\AchievementLogicSerializer.hh"
-#include "data\util\IndirectNoteResolver.hh"
+#include "data/context/GameContext.hh"
+#include "data/models/ValueMemoryNoteModel.hh"
+#include "data/util/AchievementLogicSerializer.hh"
+#include "data/util/IndirectNoteResolver.hh"
 
-#include "services\IConfiguration.hh"
-#include "services\ServiceLocator.hh"
+#include "services/IConfiguration.hh"
+#include "services/ServiceLocator.hh"
 
-#include "ui\viewmodels\TriggerViewModel.hh"
-#include "ui\EditorTheme.hh"
+#include "ui/viewmodels/TriggerViewModel.hh"
+#include "ui/EditorTheme.hh"
 
 #include <rcheevos\src\runtime\rc_condset.h>
 #include <rcheevos\src\runtime\rc_modified_memref.h>

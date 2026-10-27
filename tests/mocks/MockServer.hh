@@ -2,10 +2,10 @@
 #define RA_SERVICES_MOCK_SERVER_HH
 #pragma once
 
-#include "util\Strings.hh"
+#include "util/Strings.hh"
 
-#include "api\IServer.hh"
-#include "services\ServiceLocator.hh"
+#include "api/IServer.hh"
+#include "services/ServiceLocator.hh"
 
 #include <CppUnitTest.h>
 

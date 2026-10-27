@@ -1,12 +1,12 @@
 #include "MockAchievementRuntime.hh"
 
 #include "MockGameContext.hh"
-#include "services\ServiceLocator.hh"
+#include "services/ServiceLocator.hh"
 
 #include "CppUnitTest.h"
-#include "util\Strings.hh"
+#include "util/Strings.hh"
 
-#include "data\models\GameAssets.hh"
+#include "data/models/GameAssets.hh"
 
 #include <rcheevos\src\client\rc_client_internal.h>
 #include <rcheevos\src\runtime\rc_lboard.h>

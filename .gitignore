@@ -62,3 +62,5 @@ Thumbs.db
 *.ipch
 *.mdf
 *.ldf
+# CMake build tree
+/build/

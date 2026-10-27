@@ -2,10 +2,10 @@
 #define RA_UNITTEST_UIHELPERS_H
 #pragma once
 
-#include "ui\ImageReference.hh"
-#include "ui\WindowViewModelBase.hh"
-#include "ui\viewmodels\MessageBoxViewModel.hh"
-#include "ui\viewmodels\PopupViewModelBase.hh"
+#include "ui/ImageReference.hh"
+#include "ui/WindowViewModelBase.hh"
+#include "ui/viewmodels/MessageBoxViewModel.hh"
+#include "ui/viewmodels/PopupViewModelBase.hh"
 
 namespace Microsoft {
 namespace VisualStudio {

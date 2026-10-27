@@ -1,18 +1,18 @@
 #include "MemoryInspectorViewModel.hh"
 
-#include "data\context\GameContext.hh"
-#include "data\models\ArrayMemoryNoteModel.hh"
-#include "data\models\PointerMemoryNoteModel.hh"
-#include "data\util\AchievementLogicSerializer.hh"
+#include "data/context/GameContext.hh"
+#include "data/models/ArrayMemoryNoteModel.hh"
+#include "data/models/PointerMemoryNoteModel.hh"
+#include "data/util/AchievementLogicSerializer.hh"
 
-#include "services\IConfiguration.hh"
-#include "services\ServiceLocator.hh"
+#include "services/IConfiguration.hh"
+#include "services/ServiceLocator.hh"
 
-#include "ui\viewmodels\AssetUploadViewModel.hh"
-#include "ui\viewmodels\MessageBoxViewModel.hh"
-#include "ui\viewmodels\WindowManager.hh"
+#include "ui/viewmodels/AssetUploadViewModel.hh"
+#include "ui/viewmodels/MessageBoxViewModel.hh"
+#include "ui/viewmodels/WindowManager.hh"
 
-#include "util\Strings.hh"
+#include "util/Strings.hh"
 
 namespace ra {
 namespace ui {

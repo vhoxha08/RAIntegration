@@ -1,19 +1,19 @@
 #include "OverlayLeaderboardsPageViewModel.hh"
 
-#include "util\Strings.hh"
+#include "util/Strings.hh"
 
-#include "api\FetchLeaderboardInfo.hh"
+#include "api/FetchLeaderboardInfo.hh"
 
-#include "context\IRcClient.hh"
-#include "context\UserContext.hh"
+#include "context/IRcClient.hh"
+#include "context/UserContext.hh"
 
-#include "data\context\GameContext.hh"
+#include "data/context/GameContext.hh"
 
-#include "services\AchievementRuntime.hh"
+#include "services/AchievementRuntime.hh"
 
-#include "ui\OverlayTheme.hh"
+#include "ui/OverlayTheme.hh"
 
-#include "ui\viewmodels\WindowManager.hh"
+#include "ui/viewmodels/WindowManager.hh"
 
 #include <rcheevos\src\runtime\rc_format.h>
 #include <rcheevos\src\client\rc_client_internal.h>

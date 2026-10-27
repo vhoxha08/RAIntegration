@@ -1,12 +1,12 @@
 #include "OfflineRcClient.hh"
 
-#include "services\GameIdentifier.hh"
-#include "services\ILocalStorage.hh"
-#include "services\IThreadPool.hh"
-#include "services\ServiceLocator.hh"
+#include "services/GameIdentifier.hh"
+#include "services/ILocalStorage.hh"
+#include "services/IThreadPool.hh"
+#include "services/ServiceLocator.hh"
 
-#include "util\Log.hh"
-#include "util\Strings.hh"
+#include "util/Log.hh"
+#include "util/Strings.hh"
 
 // TODO: Move AchievementRuntimeTests::ServerCallOffline* when moving this class.
 

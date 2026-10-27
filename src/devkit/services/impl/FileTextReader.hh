@@ -6,6 +6,7 @@
 
 #include "util/Strings.hh"
 
+#include <filesystem>
 #include <fstream>
 
 namespace ra {
@@ -16,7 +17,7 @@ class FileTextReader : public ra::services::TextReader
 {
 public:
     explicit FileTextReader(const std::wstring& sFilename)
-        : m_iStream(sFilename, std::ios::binary)
+        : m_iStream(std::filesystem::path(sFilename), std::ios::binary)
     {
     }
 

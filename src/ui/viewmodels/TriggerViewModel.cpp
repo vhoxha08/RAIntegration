@@ -2,19 +2,19 @@
 
 #include "RA_Defs.h"
 
-#include "context\IRcClient.hh"
+#include "context/IRcClient.hh"
 
-#include "util\Strings.hh"
+#include "util/Strings.hh"
 
-#include "data\util\AchievementLogicSerializer.hh"
-#include "services\AchievementRuntime.hh"
-#include "services\IClipboard.hh"
-#include "services\ServiceLocator.hh"
+#include "data/util/AchievementLogicSerializer.hh"
+#include "services/AchievementRuntime.hh"
+#include "services/IClipboard.hh"
+#include "services/ServiceLocator.hh"
 
-#include "ui\EditorTheme.hh"
-#include "ui\viewmodels\MessageBoxViewModel.hh"
-#include "ui\viewmodels\WindowManager.hh"
-#include "ui\viewmodels\TriggerSummaryViewModel.hh"
+#include "ui/EditorTheme.hh"
+#include "ui/viewmodels/MessageBoxViewModel.hh"
+#include "ui/viewmodels/WindowManager.hh"
+#include "ui/viewmodels/TriggerSummaryViewModel.hh"
 
 #include <rcheevos/src/client/rc_client_internal.h>
 #include <rcheevos/src/runtime/rc_alloc.h>
