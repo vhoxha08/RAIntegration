@@ -1,0 +1,66 @@
+#ifndef RA_SERVICES_POSIX_FILESYSTEM_HH
+#define RA_SERVICES_POSIX_FILESYSTEM_HH
+#pragma once
+
+#include "services/IFileSystem.hh"
+
+namespace ra {
+namespace services {
+namespace impl {
+
+/// <summary>
+/// IFileSystem for macOS and Linux.
+/// </summary>
+/// <remarks>
+/// Paths throughout the codebase are built with '\' separators (i.e. "RACache\\Data\\"). They are converted
+/// to '/' before touching the disk.
+/// </remarks>
+class PosixFileSystem : public IFileSystem
+{
+public:
+    /// <summary>
+    /// Creates a file system rooted at <paramref name="sBaseDirectory" />. If empty, the per-user application data
+    /// directory is used ("~/Library/Application Support/RAIntegration" on macOS,
+    /// "$XDG_DATA_HOME/RAIntegration" or "~/.local/share/RAIntegration" elsewhere).
+    /// </summary>
+    explicit PosixFileSystem(const std::wstring& sBaseDirectory = L"");
+
+    const std::wstring& BaseDirectory() const noexcept override { return m_sBaseDirectory; }
+    bool DirectoryExists(const std::wstring& sDirectory) const override;
+    bool CreateDirectory(const std::wstring& sDirectory) const override;
+    size_t GetFilesInDirectory(const std::wstring& sDirectory,
+                               _Inout_ std::vector<std::wstring>& vResults) const override;
+    bool DeleteFile(const std::wstring& sPath) const override;
+    bool MoveFile(const std::wstring& sOldPath, const std::wstring& sNewPath) const override;
+    bool CopyFile(const std::wstring& sSourcePath, const std::wstring& sNewPath) const override;
+    int64_t GetFileSize(const std::wstring& sPath) const override;
+    std::chrono::system_clock::time_point GetLastModified(const std::wstring& sPath) const override;
+    std::unique_ptr<TextReader> OpenTextFile(const std::wstring& sPath) const override;
+    std::unique_ptr<TextWriter> CreateTextFile(const std::wstring& sPath) const override;
+    std::unique_ptr<TextWriter> AppendTextFile(const std::wstring& sPath) const override;
+
+    std::wstring GetDirectory(const std::wstring& sPath) const override;
+    std::wstring GetFileName(const std::wstring& sPath) const override;
+    std::wstring GetExtension(const std::wstring& sPath) const override;
+    std::wstring RemoveExtension(const std::wstring& sPath) const override;
+
+    /// <summary>
+    /// Converts a path that may be relative to <see cref="BaseDirectory" /> and/or use '\' separators into an
+    /// absolute path with '/' separators.
+    /// </summary>
+    std::wstring MakeAbsolute(const std::wstring& sPath) const;
+
+    /// <summary>
+    /// Gets the default base directory for the current user (see constructor).
+    /// </summary>
+    static std::wstring GetDefaultBaseDirectory();
+
+private:
+    std::wstring m_sBaseDirectory;
+};
+
+} // namespace impl
+} // namespace services
+} // namespace ra
+
+#endif // !RA_SERVICES_POSIX_FILESYSTEM_HH

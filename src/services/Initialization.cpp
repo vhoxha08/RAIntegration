@@ -24,32 +24,50 @@
 #include "services/impl/LoginService.hh"
 #include "services/impl/MessageDispatcher.hh"
 #include "services/impl/ThreadPool.hh"
+#ifdef _WIN32
 #include "services/impl/WindowsAudioSystem.hh"
 #include "services/impl/WindowsClipboard.hh"
 #include "services/impl/WindowsDebuggerFileLogger.hh"
 #include "services/impl/WindowsDebuggerDetector.hh"
 #include "services/impl/WindowsFileSystem.hh"
 #include "services/impl/WindowsHttpRequester.hh"
+#else
+#include "services/impl/CurlHttpRequester.hh"
+#include "services/impl/FileLogger.hh"
+#include "services/impl/HostAudioSystem.hh"
+#include "services/impl/HostClipboard.hh"
+#include "services/impl/PosixDebuggerDetector.hh"
+#include "services/impl/PosixFileSystem.hh"
+#endif
 
 #include "ui/EditorTheme.hh"
+#include "ui/IImageRepository.hh"
 #include "ui/OverlayTheme.hh"
 #include "ui/WindowViewModelBase.hh"
-#include "ui/drawing/gdi/GDIBitmapSurface.hh"
-#include "ui/drawing/gdi/ImageRepository.hh"
 #include "ui/viewmodels/OverlayManager.hh"
 #include "ui/viewmodels/WindowManager.hh"
+#ifdef _WIN32
+#include "ui/drawing/gdi/GDIBitmapSurface.hh"
+#include "ui/drawing/gdi/ImageRepository.hh"
 #include "ui/win32/Desktop.hh"
 #include "ui/win32/OverlayWindow.hh"
+#else
+#include "ui/IDesktop.hh"
+#include "ui/PlatformUi.hh"
+#include "ui/drawing/ISurface.hh"
+#endif
 
 #include "RAInterface/RA_Consoles.h"
 #include "RAInterface/RA_Emulators.h"
 
+#ifdef _WIN32
 // this, in combination with the "#define ISOLATION_AWARE_ENABLED 1" in pch.h, allows our
 // UI to use visual styles introduced in ComCtl32 v6, even if the emulator does not enable them.
 // see https://docs.microsoft.com/en-us/windows/desktop/controls/cookbook-overview
 #pragma comment(linker,"\"/manifestdependency:type='win32' \
 name='Microsoft.Windows.Common-Controls' version='6.0.0.0' \
 processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
+#endif
 
 namespace ra {
 namespace services {
@@ -96,8 +114,13 @@ void Initialization::RegisterCoreServices()
         return;
 
     auto pClock = std::make_unique<ra::services::impl::Clock>();
+#ifdef _WIN32
     auto pFileSystem = std::make_unique<ra::services::impl::WindowsFileSystem>();
     auto pLogger = std::make_unique<ra::services::impl::WindowsDebuggerFileLogger>(*pFileSystem);
+#else
+    auto pFileSystem = std::make_unique<ra::services::impl::PosixFileSystem>(s_sBaseDirectory);
+    auto pLogger = std::make_unique<ra::services::impl::FileLogger>(*pFileSystem);
+#endif
     LogHeader(*pLogger, *pFileSystem, *pClock);
 
     ra::services::ServiceLocator::Provide<ra::services::IClock>(std::move(pClock));
@@ -119,7 +142,11 @@ void Initialization::RegisterServices(EmulatorID nEmulatorId, const char* sClien
     // be known, and it's provided by the EmulatorContext. IFileSystem and IDesktop are required for EmulatorContext
     auto& pFileSystem = ra::services::ServiceLocator::GetMutable<ra::services::IFileSystem>();
 
+#ifdef _WIN32
     auto pDesktop = std::make_unique<ra::ui::win32::Desktop>();
+#else
+    auto pDesktop = ra::ui::PlatformUi::CreateDesktop();
+#endif
     ra::services::ServiceLocator::Provide<ra::ui::IDesktop>(std::move(pDesktop));
 
     auto pMessageDispatcher = std::make_unique<ra::services::impl::MessageDispatcher>();
@@ -152,7 +179,11 @@ void Initialization::RegisterServices(EmulatorID nEmulatorId, const char* sClien
     pThreadPool->Initialize(pConfiguration->GetNumBackgroundThreads());
     ra::services::ServiceLocator::Provide<ra::services::IThreadPool>(std::move(pThreadPool));
 
+#ifdef _WIN32
     auto pHttpRequester = std::make_unique<ra::services::impl::WindowsHttpRequester>();
+#else
+    auto pHttpRequester = std::make_unique<ra::services::impl::CurlHttpRequester>();
+#endif
     ra::services::ServiceLocator::Provide<ra::services::IHttpRequester>(std::move(pHttpRequester));
 
 #ifdef PERFORMANCE_COUNTERS
@@ -178,7 +209,11 @@ void Initialization::RegisterServices(EmulatorID nEmulatorId, const char* sClien
     auto pEmulatorMemoryContext = std::make_unique<ra::context::impl::EmulatorMemoryContext>();
     ra::services::ServiceLocator::Provide<ra::context::IEmulatorMemoryContext>(std::move(pEmulatorMemoryContext));
 
+#ifdef _WIN32
     auto pDebuggerDetector = std::make_unique<ra::services::impl::WindowsDebuggerDetector>();
+#else
+    auto pDebuggerDetector = std::make_unique<ra::services::impl::PosixDebuggerDetector>();
+#endif
     ra::services::ServiceLocator::Provide<ra::services::IDebuggerDetector>(std::move(pDebuggerDetector));
 
     auto pAchievementRuntime = std::make_unique<ra::services::AchievementRuntime>();
@@ -187,16 +222,24 @@ void Initialization::RegisterServices(EmulatorID nEmulatorId, const char* sClien
     auto pGameIdentifier = std::make_unique<ra::services::GameIdentifier>();
     ra::services::ServiceLocator::Provide<ra::services::GameIdentifier>(std::move(pGameIdentifier));
 
+#ifdef _WIN32
     auto pAudioSystem = std::make_unique<ra::services::impl::WindowsAudioSystem>();
-    ra::services::ServiceLocator::Provide<ra::services::IAudioSystem>(std::move(pAudioSystem));
-
     auto pClipboard = std::make_unique<ra::services::impl::WindowsClipboard>();
+#else
+    auto pAudioSystem = std::make_unique<ra::services::impl::HostAudioSystem>();
+    auto pClipboard = std::make_unique<ra::services::impl::HostClipboard>();
+#endif
+    ra::services::ServiceLocator::Provide<ra::services::IAudioSystem>(std::move(pAudioSystem));
     ra::services::ServiceLocator::Provide<ra::services::IClipboard>(std::move(pClipboard));
 
     auto pFrameEventQueue = std::make_unique<ra::services::FrameEventQueue>();
     ra::services::ServiceLocator::Provide<ra::services::FrameEventQueue>(std::move(pFrameEventQueue));
 
+#ifdef _WIN32
     auto pSurfaceFactory = std::make_unique<ra::ui::drawing::gdi::GDISurfaceFactory>();
+#else
+    auto pSurfaceFactory = ra::ui::PlatformUi::CreateSurfaceFactory();
+#endif
     ra::services::ServiceLocator::Provide<ra::ui::drawing::ISurfaceFactory>(std::move(pSurfaceFactory));
 
     auto pOverlayTheme = std::make_unique<ra::ui::OverlayTheme>();
@@ -211,14 +254,20 @@ void Initialization::RegisterServices(EmulatorID nEmulatorId, const char* sClien
     ra::services::ServiceLocator::Provide<ra::ui::viewmodels::WindowManager>(std::move(pWindowManager));
     ra::ui::WindowViewModelBase::WindowTitleProperty.SetDefaultValue(ra::util::String::Widen(sClientName));
 
+#ifdef _WIN32
     auto pOverlayWindow = std::make_unique<ra::ui::win32::OverlayWindow>();
     ra::services::ServiceLocator::Provide<ra::ui::win32::OverlayWindow>(std::move(pOverlayWindow));
+#endif
 
     auto pOverlayManager = std::make_unique<ra::ui::viewmodels::OverlayManager>();
     ra::services::ServiceLocator::Provide<ra::ui::viewmodels::OverlayManager>(std::move(pOverlayManager));
 
+#ifdef _WIN32
     auto pImageRepository = std::make_unique<ra::ui::drawing::gdi::ImageRepository>();
     pImageRepository->Initialize();
+#else
+    auto pImageRepository = ra::ui::PlatformUi::CreateImageRepository();
+#endif
     ra::services::ServiceLocator::Provide<ra::ui::IImageRepository>(std::move(pImageRepository));
 
     auto pServer = std::make_unique<ra::api::impl::DisconnectedServer>(pConfiguration->GetHostUrl());
@@ -247,7 +296,11 @@ void Initialization::Shutdown()
 
     ra::services::ServiceLocator::GetMutable<ra::ui::IDesktop>().Shutdown();
 
+#ifdef _WIN32
     ra::services::ServiceLocator::GetMutable<ra::ui::win32::OverlayWindow>().DestroyOverlayWindow();
+#else
+    ra::ui::PlatformUi::Shutdown();
+#endif
 
     ra::services::ServiceLocator::GetMutable<ra::services::IThreadPool>().Shutdown(true);
 

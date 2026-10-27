@@ -142,6 +142,37 @@ target_link_libraries(RAIntegrationCore PUBLIC RADevKit)
 target_precompile_headers(RAIntegrationCore PRIVATE src/pch.h)
 ra_apply_compat(RAIntegrationCore)
 
+# macOS/Linux service implementations and service registration. The UI services are created
+# through ra::ui::PlatformUi, which the linked UI backend (RAIntegrationHeadless, ...) provides.
+if(NOT WIN32)
+  find_package(CURL REQUIRED)
+  target_sources(RAIntegrationCore PRIVATE
+    src/Exports.cpp
+    src/RA_Core.cpp
+    src/services/Initialization.cpp
+    src/services/impl/CurlHttpRequester.cpp
+    src/services/impl/PosixDebuggerDetector.cpp
+    src/services/impl/PosixFileSystem.cpp
+  )
+  target_link_libraries(RAIntegrationCore PUBLIC CURL::libcurl)
+
+  # UI backend without any windows: logs dialogs, keeps surfaces in memory.
+  add_library(RAIntegrationHeadless STATIC
+    src/ui/headless/HeadlessDesktop.cpp
+    src/ui/headless/HeadlessImageRepository.cpp
+    src/ui/headless/PlatformUi.cpp
+  )
+  target_link_libraries(RAIntegrationHeadless PUBLIC RAIntegrationCore)
+  target_precompile_headers(RAIntegrationHeadless REUSE_FROM RAIntegrationCore)
+  ra_apply_compat(RAIntegrationHeadless)
+
+  # starts the integration headless and exercises the platform services
+  add_executable(RAHeadlessSmoke tools/HeadlessSmoke.cpp)
+  target_link_libraries(RAHeadlessSmoke PRIVATE RAIntegrationHeadless)
+  target_precompile_headers(RAHeadlessSmoke REUSE_FROM RAIntegrationCore)
+  ra_apply_compat(RAHeadlessSmoke)
+endif()
+
 # ---- unit tests ---------------------------------------------------------------
 # The tests are written against Microsoft's CppUnitTest framework. On other platforms
 # cmake/unittest provides a compatible header and a small runner (TestMain.cpp).
@@ -320,4 +351,10 @@ if(RA_BUILD_TESTS AND NOT MSVC)
   target_precompile_headers(RA_Integration.Tests PRIVATE src/pch.h)
   ra_apply_compat(RA_Integration.Tests)
   add_test(NAME RA_Integration.Tests COMMAND RA_Integration.Tests)
+
+  # tests for the macOS/Linux service implementations
+  target_sources(RA_Integration.Tests PRIVATE
+    src/services/impl/PosixFileSystem.cpp
+    tests/services/impl/PosixServices_Tests.cpp
+  )
 endif()

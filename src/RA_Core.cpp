@@ -20,9 +20,12 @@
 #include "ui/viewmodels/OverlayManager.hh"
 #include "ui/viewmodels/WindowManager.hh"
 
+#ifdef _WIN32
 HMODULE g_hThisDLLInst = nullptr;
+#endif
 HWND g_RAMainWnd = nullptr;
 
+#ifdef _WIN32
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD dwReason, _UNUSED LPVOID)
 {
     switch (dwReason)
@@ -40,6 +43,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD dwReason, _UNUSED LPVOID)
 
     return TRUE;
 }
+#endif
 
 static int DoShutdown()
 {

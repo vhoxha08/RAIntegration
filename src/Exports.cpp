@@ -82,6 +82,7 @@ API int CCONV _RA_WarnDisableHardcore(const char* sActivity)
 }
 
 #ifndef RA_UTEST
+#ifdef _WIN32
 API void CCONV _RA_UpdateHWnd(HWND hMainHWND)
 {
     auto& pDesktop = dynamic_cast<ra::ui::win32::Desktop&>(ra::services::ServiceLocator::GetMutable<ra::ui::IDesktop>());
@@ -96,6 +97,12 @@ API void CCONV _RA_UpdateHWnd(HWND hMainHWND)
         }
     }
 }
+#else
+API void CCONV _RA_UpdateHWnd([[maybe_unused]] HWND hMainHWND)
+{
+    // the host window is not used outside of Windows; the UI backend draws into the host's own window
+}
+#endif
 #endif
 
 static void InitializeOfflineMode()
@@ -165,6 +172,7 @@ static BOOL InitCommon([[maybe_unused]] HWND hMainHWND, [[maybe_unused]] int nEm
 
     _RA_UpdateHWnd(hMainHWND);
 
+#ifdef _WIN32
     // When using SDL, the Windows message queue is never empty (there's a flood of WM_PAINT messages for the
     // SDL window). InvalidateRect only generates a WM_PAINT when the message queue is empty, so we have to
     // explicitly generate (and dispatch) a WM_PAINT message by calling UpdateWindow.
@@ -179,6 +187,7 @@ static BOOL InitCommon([[maybe_unused]] HWND hMainHWND, [[maybe_unused]] int nEm
             ra::ui::win32::bindings::ControlBinding::SetNeedsUpdateWindow(false);
             break;
     }
+#endif
 #endif
 
     // Set the client version and User-Agent string
@@ -574,7 +583,7 @@ static void UpdateUIForFrameChange()
 
 API void CCONV _RA_DoAchievementsFrame()
 {
-#ifndef RA_UTEST
+#if !defined(RA_UTEST) && defined(_WIN32)
     ra::ui::win32::bindings::ControlBinding::RepaintGuard guard;
 #endif
 
@@ -593,21 +602,21 @@ API void CCONV _RA_DoAchievementsFrame()
 
 API void CCONV _RA_SetForceRepaint([[maybe_unused]] int bEnable)
 {
-#ifndef RA_UTEST
+#if !defined(RA_UTEST) && defined(_WIN32)
     ra::ui::win32::bindings::ControlBinding::SetNeedsUpdateWindow(bEnable != 0);
 #endif
 }
 
 API void CCONV _RA_SuspendRepaint()
 {
-#ifndef RA_UTEST
+#if !defined(RA_UTEST) && defined(_WIN32)
     ra::ui::win32::bindings::ControlBinding::SuspendRepaint();
 #endif
 }
 
 API void CCONV _RA_ResumeRepaint()
 {
-#ifndef RA_UTEST
+#if !defined(RA_UTEST) && defined(_WIN32)
     ra::ui::win32::bindings::ControlBinding::ResumeRepaint();
 #endif
 }
