@@ -2,6 +2,7 @@
 
 #include "ui/imgui/BrokenAchievementsView.hh"
 #include "ui/imgui/GameChecksumView.hh"
+#include "ui/imgui/ImGuiOverlay.hh"
 #include "ui/imgui/ImGuiSurface.hh"
 #include "ui/imgui/LoginView.hh"
 #include "ui/imgui/MemoryInspectorView.hh"
@@ -319,19 +320,7 @@ void ImGuiDesktop::Render() const
 
 void ImGuiDesktop::RenderOverlay() const
 {
-    if (!ra::services::ServiceLocator::Exists<ra::ui::viewmodels::OverlayManager>())
-        return;
-
-    // The Win32 build paints popups incrementally into a layered window. ImGui starts each frame empty,
-    // so the whole overlay is rendered every frame onto a surface covering the game area (below the menu
-    // bar), and drawn behind the toolkit's windows.
-    const ImGuiViewport* pViewport = ImGui::GetMainViewport();
-    ImGuiSurface pSurface(static_cast<int>(pViewport->WorkSize.x), static_cast<int>(pViewport->WorkSize.y), true);
-
-    auto& pOverlayManager = ra::services::ServiceLocator::GetMutable<ra::ui::viewmodels::OverlayManager>();
-    pOverlayManager.Render(pSurface, true);
-
-    pSurface.Replay(*ImGui::GetBackgroundDrawList(), pViewport->WorkPos.x, pViewport->WorkPos.y);
+    ra::ui::imgui::RenderOverlay();
 }
 
 void ImGuiDesktop::Shutdown()

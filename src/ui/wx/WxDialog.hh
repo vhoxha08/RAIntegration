@@ -1,0 +1,64 @@
+#ifndef RA_UI_WX_DIALOG_HH
+#define RA_UI_WX_DIALOG_HH
+#pragma once
+
+#include "ui/WindowViewModelBase.hh"
+
+#include <wx/dialog.h>
+
+#include <functional>
+
+namespace ra {
+namespace ui {
+namespace wx {
+
+/// <summary>
+/// Base for the wxWidgets windows of the toolkit (the counterpart of the Win32 DialogBase). Keeps the title in
+/// sync with the view model, and closes when the view model sets a dialog result.
+/// </summary>
+class WxDialog : public wxDialog, protected ViewModelBase::NotifyTarget
+{
+public:
+    WxDialog(WindowViewModelBase& vmWindow, long nStyle = wxDEFAULT_DIALOG_STYLE);
+    ~WxDialog() override;
+    WxDialog(const WxDialog&) noexcept = delete;
+    WxDialog& operator=(const WxDialog&) noexcept = delete;
+    WxDialog(WxDialog&&) noexcept = delete;
+    WxDialog& operator=(WxDialog&&) noexcept = delete;
+
+    WindowViewModelBase& GetViewModel() noexcept { return m_vmWindow; }
+
+    /// <summary>
+    /// Called by WxDesktop when the window is shown modeless (closing destroys it).
+    /// </summary>
+    void SetModeless() noexcept { m_bModeless = true; }
+
+protected:
+    /// <summary>
+    /// Closes the window with the given result.
+    /// </summary>
+    void CloseWithResult(DialogResult nResult);
+
+    /// <summary>
+    /// Runs an action once the current event has been handled (i.e. work that shows other modal windows).
+    /// </summary>
+    void RunLater(std::function<void()> fAction);
+
+    void OnViewModelStringValueChanged(const StringModelProperty::ChangeArgs& args) override;
+    void OnViewModelIntValueChanged(const IntModelProperty::ChangeArgs& args) override;
+
+    WindowViewModelBase& m_vmWindow;
+
+private:
+    void OnCloseWindow(wxCloseEvent& event);
+    void OnButton(wxCommandEvent& event);
+
+    bool m_bModeless = false;
+    bool m_bClosing = false;
+};
+
+} // namespace wx
+} // namespace ui
+} // namespace ra
+
+#endif // !RA_UI_WX_DIALOG_HH

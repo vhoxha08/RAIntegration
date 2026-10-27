@@ -187,6 +187,7 @@ if(NOT WIN32)
       src/ui/imgui/GameChecksumView.cpp
       src/ui/imgui/ImGuiControls.cpp
       src/ui/imgui/ImGuiImageRepository.cpp
+      src/ui/imgui/ImGuiOverlay.cpp
       src/ui/imgui/ImGuiSurface.cpp
       src/ui/imgui/LoginView.cpp
       src/ui/imgui/MemoryInspectorView.cpp
@@ -200,6 +201,54 @@ if(NOT WIN32)
     target_link_libraries(RAIntegrationImGui PUBLIC RAIntegrationCore imgui)
     target_precompile_headers(RAIntegrationImGui REUSE_FROM RAIntegrationCore)
     ra_apply_compat(RAIntegrationImGui)
+  endif()
+
+  # UI backend with native windows (wxWidgets, built statically from the wxWidgets submodule). The overlay is
+  # still drawn by the host's Dear ImGui frame, so this also needs the host's "imgui" target.
+  option(RA_BUILD_WX_UI "Build the wxWidgets UI backend" OFF)
+  if(RA_BUILD_WX_UI AND TARGET imgui)
+    if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/wxWidgets/CMakeLists.txt)
+      message(FATAL_ERROR "wxWidgets submodule missing: git submodule update --init --recursive wxWidgets")
+    endif()
+
+    set(wxBUILD_SHARED OFF CACHE BOOL "" FORCE)
+    set(wxBUILD_INSTALL OFF CACHE BOOL "" FORCE)
+    set(wxBUILD_PRECOMP OFF CACHE STRING "" FORCE)
+    foreach(lib wxUSE_ZLIB wxUSE_LIBPNG wxUSE_LIBJPEG wxUSE_EXPAT wxUSE_REGEX)
+      set(${lib} builtin CACHE STRING "" FORCE)
+    endforeach()
+    foreach(feature wxUSE_LIBTIFF wxUSE_WEBVIEW wxUSE_MEDIACTRL wxUSE_STC wxUSE_RICHTEXT wxUSE_RIBBON
+                    wxUSE_PROPGRID wxUSE_AUI wxUSE_XRC wxUSE_OPENGL wxUSE_WEBREQUEST wxUSE_SECRETSTORE
+                    wxUSE_LIBSDL wxUSE_LIBMSPACK wxUSE_SOUND)
+      set(${feature} OFF CACHE BOOL "" FORCE)
+    endforeach()
+    add_subdirectory(wxWidgets EXCLUDE_FROM_ALL)
+
+    add_library(RAIntegrationWx STATIC
+      src/ui/headless/HeadlessDesktop.cpp
+      src/ui/headless/HeadlessImageRepository.cpp
+      src/ui/imgui/ImGuiImageRepository.cpp
+      src/ui/imgui/ImGuiOverlay.cpp
+      src/ui/imgui/ImGuiSurface.cpp
+      src/ui/wx/LoginDialog.cpp
+      src/ui/wx/PlatformUi.cpp
+      src/ui/wx/WxApp.cpp
+      src/ui/wx/WxDesktop.cpp
+      src/ui/wx/WxDialog.cpp
+    )
+    target_link_libraries(RAIntegrationWx PUBLIC RAIntegrationCore imgui wx::core wx::base)
+    # test automation for the native windows (see src/ui/wx/WxTestHooks.hh)
+    option(RA_WX_TEST_HOOKS "Build the wxWidgets UI test hooks (RA_WX_TEST_SCRIPT)" OFF)
+    if(RA_WX_TEST_HOOKS AND APPLE)
+      target_sources(RAIntegrationWx PRIVATE src/ui/wx/WxTestHooks.mm)
+      target_compile_definitions(RAIntegrationWx PRIVATE RA_WX_TEST_HOOKS)
+      set_source_files_properties(src/ui/wx/WxTestHooks.mm PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
+      target_link_libraries(RAIntegrationWx PRIVATE "-framework AppKit")
+    endif()
+
+    # own precompiled header: wxWidgets adds compile definitions the core's doesn't have
+    target_precompile_headers(RAIntegrationWx PRIVATE src/pch.h)
+    ra_apply_compat(RAIntegrationWx)
   endif()
 endif()
 

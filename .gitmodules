@@ -10,3 +10,6 @@
 [submodule "RAInterface"]
 	path = RAInterface
 	url = https://github.com/RetroAchievements/RAInterface.git
+[submodule "wxWidgets"]
+	path = wxWidgets
+	url = https://github.com/wxWidgets/wxWidgets.git
