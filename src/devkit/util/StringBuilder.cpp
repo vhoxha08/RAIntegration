@@ -3,6 +3,13 @@
 namespace ra {
 namespace util {
 
+// wchar_t holds UTF-16 code units on Windows and UTF-32 code points elsewhere.
+static constexpr bool WCHAR_IS_UTF16 = (sizeof(wchar_t) == 2);
+static_assert(sizeof(wchar_t) == 2 || sizeof(wchar_t) == 4, "unsupported wchar_t size");
+
+static constexpr bool IsHighSurrogate(uint32_t c) noexcept { return c >= 0xD800 && c <= 0xDBFF; }
+static constexpr bool IsLowSurrogate(uint32_t c) noexcept { return c >= 0xDC00 && c <= 0xDFFF; }
+
 static std::pair<size_t, bool> CalculateUtf8Length(std::wstring_view str) noexcept
 {
     if (str.empty())
@@ -11,13 +18,13 @@ static std::pair<size_t, bool> CalculateUtf8Length(std::wstring_view str) noexce
     bool bAsciiOnly = true;
     size_t nUtf8Length = 0;
 
-    GSL_SUPPRESS_TYPE1 const uint16_t* pSrc = reinterpret_cast<const uint16_t*>(str.data());
+    const wchar_t* pSrc = str.data();
     if (pSrc)
     {
-        const uint16_t* pStop = pSrc + str.length();
+        const wchar_t* pStop = pSrc + str.length();
         while (pSrc < pStop)
         {
-            const auto c = *pSrc++;
+            const auto c = static_cast<uint32_t>(*pSrc++);
             if (c < 0x80)
             {
                 ++nUtf8Length;
@@ -30,15 +37,23 @@ static std::pair<size_t, bool> CalculateUtf8Length(std::wstring_view str) noexce
             {
                 nUtf8Length += 2;
             }
-            else if (c >= 0xD800 && c <= 0xDBFF && *pSrc >= 0xDC00 && *pSrc <= 0xDFFF)
+            else if constexpr (WCHAR_IS_UTF16)
             {
-                // two surrogate pairs will take four bytes total
-                nUtf8Length += 4;
-                ++pSrc;
+                if (IsHighSurrogate(c) && pSrc < pStop && IsLowSurrogate(static_cast<uint32_t>(*pSrc)))
+                {
+                    // two surrogate pairs will take four bytes total
+                    nUtf8Length += 4;
+                    ++pSrc;
+                }
+                else
+                {
+                    nUtf8Length += 3;
+                }
             }
             else
             {
-                nUtf8Length += 3;
+                // code points above the BMP take four bytes; invalid ones become U+FFFD (three bytes)
+                nUtf8Length += (c >= 0x10000 && c < 0x110000) ? 4 : 3;
             }
         }
     }
@@ -58,8 +73,8 @@ std::string StringBuilder::Narrow(std::wstring_view str)
     sResult.resize(nUtf8Length);
     GSL_SUPPRESS_TYPE1 uint8_t* pOut = reinterpret_cast<uint8_t*>(sResult.data());
 
-    GSL_SUPPRESS_TYPE1 const uint16_t* pSrc = reinterpret_cast<const uint16_t*>(str.data());
-    const uint16_t* pStop = pSrc + str.length();
+    const wchar_t* pSrc = str.data();
+    const wchar_t* pStop = pSrc + str.length();
 
     if (!pOut || !pSrc)
         return sResult;
@@ -74,7 +89,7 @@ std::string StringBuilder::Narrow(std::wstring_view str)
 
     while (pSrc < pStop)
     {
-        uint16_t c = *pSrc++;
+        auto c = static_cast<uint32_t>(*pSrc++);
         if (c < 0x80)
         {
             *pOut++ = gsl::narrow_cast<uint8_t>(c);
@@ -90,36 +105,43 @@ std::string StringBuilder::Narrow(std::wstring_view str)
 
         if (c >= 0xD800 && c <= 0xDFFF)
         {
-            if (c >= 0xDC00)
+            if constexpr (WCHAR_IS_UTF16)
             {
-                // second part of surrogate pair after first
-                c = 0xFFFD;
-            }
-            else
-            {
-                const uint16_t c2 = *pSrc;
-                if (c2 < 0xDC00 || c2 > 0xDFFF)
+                if (IsHighSurrogate(c) && pSrc < pStop && IsLowSurrogate(static_cast<uint32_t>(*pSrc)))
                 {
-                    // not second part of surrogate pair
-                    c = 0xFFFD;
+                    // decode surrogate pair
+                    const auto c2 = static_cast<uint32_t>(*pSrc++);
+                    c = (((c & 0x03FF) << 10) | (c2 & 0x3FF)) + 0x10000;
                 }
                 else
                 {
-                    // decode surrogate pair
-                    const uint32_t cx = (((c & 0x03FF) << 10) | (c2 & 0x3FF)) + 0x10000;
-                    *pOut++ = 0xF0 | gsl::narrow_cast<uint8_t>(cx >> 18);
-                    *pOut++ = 0x80 | gsl::narrow_cast<uint8_t>((cx >> 12) & 0x3F);
-                    *pOut++ = 0x80 | gsl::narrow_cast<uint8_t>((cx >> 6) & 0x3F);
-                    *pOut++ = 0x80 | gsl::narrow_cast<uint8_t>(cx & 0x3F);
-                    ++pSrc;
-                    continue;
+                    // unpaired surrogate
+                    c = 0xFFFD;
                 }
             }
+            else
+            {
+                // surrogates are not valid code points in UTF-32
+                c = 0xFFFD;
+            }
+        }
+        else if (c >= 0x110000)
+        {
+            c = 0xFFFD;
         }
 
-        *pOut++ = 0xE0 | (c >> 12);
-        *pOut++ = 0x80 | ((c >> 6) & 0x3F);
-        *pOut++ = 0x80 | (c & 0x3F);
+        if (c >= 0x10000)
+        {
+            *pOut++ = 0xF0 | gsl::narrow_cast<uint8_t>(c >> 18);
+            *pOut++ = 0x80 | gsl::narrow_cast<uint8_t>((c >> 12) & 0x3F);
+            *pOut++ = 0x80 | gsl::narrow_cast<uint8_t>((c >> 6) & 0x3F);
+            *pOut++ = 0x80 | gsl::narrow_cast<uint8_t>(c & 0x3F);
+            continue;
+        }
+
+        *pOut++ = 0xE0 | gsl::narrow_cast<uint8_t>(c >> 12);
+        *pOut++ = 0x80 | gsl::narrow_cast<uint8_t>((c >> 6) & 0x3F);
+        *pOut++ = 0x80 | gsl::narrow_cast<uint8_t>(c & 0x3F);
     }
 
     *pOut = '\0';
@@ -194,9 +216,9 @@ static std::pair<size_t, bool> CalculateUnicodeLength(std::string_view str) noex
 
             if (nAdditional > 3)
             {
-                // 5/6 byte UTF-8 sequences not supported in UTF-16 - will be replaced with xFFFD
+                // 5/6 byte UTF-8 sequences are not valid Unicode - will be replaced with xFFFD
             }
-            else if (nAdditional == 3)
+            else if (nAdditional == 3 && WCHAR_IS_UTF16)
             {
                 // extra space for surrogate pair
                 ++nUnicodeLength;
@@ -219,7 +241,7 @@ std::wstring StringBuilder::Widen(std::string_view str)
 
     std::wstring sResult;
     sResult.resize(nUnicodeLength);
-    GSL_SUPPRESS_TYPE1 uint16_t* pOut = reinterpret_cast<uint16_t*>(sResult.data());
+    wchar_t* pOut = sResult.data();
 
     GSL_SUPPRESS_TYPE1 const uint8_t* pSrc = reinterpret_cast<const uint8_t*>(str.data());
     const uint8_t* pStop = pSrc + str.length();
@@ -230,7 +252,7 @@ std::wstring StringBuilder::Widen(std::string_view str)
     if (bAsciiOnly)
     {
         while (pSrc < pStop)
-            *pOut++ = gsl::narrow_cast<uint16_t>(*pSrc++);
+            *pOut++ = static_cast<wchar_t>(*pSrc++);
         *pOut = '\0';
         return sResult;
     }
@@ -240,7 +262,7 @@ std::wstring StringBuilder::Widen(std::string_view str)
         const uint8_t c = *pSrc++;
         if ((c & 0x80) == 0)
         {
-            *pOut++ = gsl::narrow_cast<uint16_t>(c);
+            *pOut++ = static_cast<wchar_t>(c);
             continue;
         }
 
@@ -280,24 +302,31 @@ std::wstring StringBuilder::Widen(std::string_view str)
         }
         else if (nAccumulator < 0x10000)
         {
-            *pOut++ = gsl::narrow_cast<uint16_t>(nAccumulator & 0xFFFF);
+            *pOut++ = static_cast<wchar_t>(nAccumulator);
         }
         else if (nAccumulator < 0x110000)
         {
-            // convert to surrogate pair
-            nAccumulator -= 0x10000;
-            *pOut++ = 0xD800 | gsl::narrow_cast<uint16_t>(nAccumulator >> 10);
-            *pOut++ = 0xDC00 | gsl::narrow_cast<uint16_t>(nAccumulator & 0x03FF);
+            if constexpr (WCHAR_IS_UTF16)
+            {
+                // convert to surrogate pair
+                nAccumulator -= 0x10000;
+                *pOut++ = static_cast<wchar_t>(0xD800 | (nAccumulator >> 10));
+                *pOut++ = static_cast<wchar_t>(0xDC00 | (nAccumulator & 0x03FF));
+            }
+            else
+            {
+                *pOut++ = static_cast<wchar_t>(nAccumulator);
+            }
         }
         else
         {
-            // 5/6 byte UTF-8 characters not supported by UTF-16.
+            // 5/6 byte UTF-8 sequences are not valid Unicode.
             *pOut++ = 0xFFFD;
         }
     }
 
     *pOut = '\0';
-    GSL_SUPPRESS_TYPE1 const auto nActualSize = pOut - reinterpret_cast<uint16_t*>(sResult.data());
+    const auto nActualSize = pOut - sResult.data();
     sResult.resize(nActualSize);
     return sResult;
 }

@@ -43,11 +43,21 @@
 #define _CRT_WIDE(s) _CRT_WIDE_(s)
 
 #ifdef __cplusplus
+/* rcheevos/src/util/rc_compat.h treats any compiler without __STDC_VERSION__ (i.e. C++ on
+ * clang/gcc) as C89 and redirects these to rc_* fallbacks - rc_snprintf ignores the buffer
+ * size. Defining them as themselves makes its "#ifndef name" guards keep the real functions. */
+#define snprintf snprintf
+#define strcasecmp strcasecmp
+#define strncasecmp strncasecmp
+#define strdup strdup
+
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
 #include <cwchar>
+#include <cstring>
+#include <string>
 
 /* CRT functions without a portable spelling */
 inline void _wassert(const wchar_t* sMessage, const wchar_t* sFile, unsigned nLine)
@@ -65,6 +75,26 @@ inline int _wtoi(const wchar_t* sValue)
 {
     return static_cast<int>(std::wcstol(sValue, nullptr, 10));
 }
+
+inline int wctomb_s(int* pRetValue, char* sBuffer, size_t /*nBufferSize*/, wchar_t wc)
+{
+    const int nResult = std::wctomb(sBuffer, wc);
+    if (pRetValue)
+        *pRetValue = nResult;
+    return (nResult < 0) ? EILSEQ : 0;
+}
+
+/* "NAME=value" form only */
+inline int _putenv(const char* sAssignment)
+{
+    const char* pEquals = std::strchr(sAssignment, '=');
+    if (!pEquals)
+        return -1;
+    const std::string sName(sAssignment, pEquals);
+    return setenv(sName.c_str(), pEquals + 1, 1);
+}
+
+#define _tzset tzset
 
 /* only the explicit-size overloads are used: (buffer, size, format, ...) */
 #define swprintf_s std::swprintf
