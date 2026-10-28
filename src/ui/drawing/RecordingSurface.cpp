@@ -128,10 +128,20 @@ void RecordingSurface::FillRectangle(int nX, int nY, int nWidth, int nHeight, Co
 {
     if (nColor.ARGB == Color::Transparent.ARGB)
     {
-        // Color::Transparent is a color key that erases. Erasing everything is common (start over); partial
-        // erases can't be expressed in a recording, but the whole frame is redrawn each time anyway.
-        if (nX <= 0 && nY <= 0 && nX + nWidth >= m_nWidth && nY + nHeight >= m_nHeight)
-            m_vOps.clear();
+        // Color::Transparent is a color key that erases (i.e. before part of the surface is drawn again): what's
+        // entirely inside the area is dropped, or it would pile up under every repaint. (What only partly overlaps it
+        // stays; a recording can't erase part of it.)
+        Op pErase;
+        pErase.nType = OpType::Rectangle;
+        pErase.fX = static_cast<float>(nX);
+        pErase.fY = static_cast<float>(nY);
+        pErase.fWidth = static_cast<float>(nWidth);
+        pErase.fHeight = static_cast<float>(nHeight);
+        pErase.fClipLeft = 0.0f;
+        pErase.fClipTop = 0.0f;
+        pErase.fClipRight = static_cast<float>(m_nWidth);
+        pErase.fClipBottom = static_cast<float>(m_nHeight);
+        RemoveCoveredOps(pErase);
         return;
     }
 
@@ -220,11 +230,31 @@ void RecordingSurface::WriteText(int nX, int nY, int nFont, Color nColor, const 
     pOp.sText = ToDisplayText(sText);
 }
 
+void RecordingSurface::RemoveOpsUnderImage(int nX, int nY, int nWidth, int nHeight)
+{
+    // like GDI, an opaque surface copies images over what's there (i.e. the in-game overlay starts every repaint with
+    // its background over the whole surface): what they hide is dropped so it doesn't pile up under every repaint
+    if (m_bTransparent)
+        return;
+
+    Op pImage;
+    pImage.fX = static_cast<float>(nX);
+    pImage.fY = static_cast<float>(nY);
+    pImage.fWidth = static_cast<float>(nWidth);
+    pImage.fHeight = static_cast<float>(nHeight);
+    pImage.fClipLeft = 0.0f;
+    pImage.fClipTop = 0.0f;
+    pImage.fClipRight = static_cast<float>(m_nWidth);
+    pImage.fClipBottom = static_cast<float>(m_nHeight);
+    RemoveCoveredOps(pImage);
+}
+
 void RecordingSurface::DrawImage(int nX, int nY, int nWidth, int nHeight, const ImageReference& pImage)
 {
     if (pImage.Type() == ImageType::None)
         return;
 
+    RemoveOpsUnderImage(nX, nY, nWidth, nHeight);
     Op& pOp = AddOp(OpType::Image, nX, nY, nWidth, nHeight);
     pOp.nImageType = pImage.Type();
     pOp.sImageName = pImage.Name();
@@ -236,6 +266,7 @@ void RecordingSurface::DrawImageStretched(int nX, int nY, int nWidth, int nHeigh
     if (pImage.Type() == ImageType::None)
         return;
 
+    RemoveOpsUnderImage(nX, nY, nWidth, nHeight);
     Op& pOp = AddOp(OpType::Image, nX, nY, nWidth, nHeight);
     pOp.nImageType = pImage.Type();
     pOp.sImageName = pImage.Name();

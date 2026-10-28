@@ -87,9 +87,9 @@ public:
     };
 
     /// <summary>
-    /// The recorded drawing commands, in order. Commands
-    /// hidden by later opaque fills are dropped; a renderer that keeps its own image can draw just the commands
-    /// with a higher nSequence than the last one it drew.
+    /// The recorded drawing commands, in order. Commands hidden by later opaque fills, erases, or images on an
+    /// opaque surface are dropped; a renderer that keeps its own image can draw just the commands with a higher
+    /// nSequence than the last one it drew.
     /// </summary>
     const std::vector<Op>& GetOps() const noexcept { return m_vOps; }
 
@@ -119,6 +119,7 @@ private:
     Op& AddOp(OpType nType, int nX, int nY, int nWidth, int nHeight);
     void AddOp(Op&& pOp);
     void RemoveCoveredOps(const Op& pOpaqueOp);
+    void RemoveOpsUnderImage(int nX, int nY, int nWidth, int nHeight);
     float GetAlpha(Color nColor) const noexcept;
 
     int m_nWidth;
