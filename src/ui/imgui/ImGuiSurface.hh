@@ -118,7 +118,6 @@ private:
     int m_nHeight;
     bool m_bTransparent;
     mutable std::vector<Op> m_vOps; // DiscardOps is const: it doesn't change what the surface shows
-    uint64_t m_nNextSequence = 1;
 
     static Font GetFont(int nFont);
 };

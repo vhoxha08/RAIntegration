@@ -14,6 +14,7 @@
 #include <imgui_internal.h>
 
 #include <algorithm>
+#include <atomic>
 #include <mutex>
 #include <cfloat>
 #include <cmath>
@@ -21,6 +22,15 @@
 namespace ra {
 namespace ui {
 namespace imgui {
+
+// Shared by all surfaces: a renderer keeping what it drew from a surface (by the last sequence it drew) must not
+// mistake a new surface, which may reuse the old one's address, for the old one.
+static uint64_t NextSequence() noexcept
+{
+    static std::atomic<uint64_t> s_nNextSequence{1};
+    return s_nNextSequence++;
+}
+
 
 static bool CanUseImGui()
 {
@@ -78,7 +88,7 @@ ImGuiSurface::ImGuiSurface(int nWidth, int nHeight, bool bTransparent) noexcept 
 ImGuiSurface::Op& ImGuiSurface::AddOp(OpType nType, int nX, int nY, int nWidth, int nHeight)
 {
     Op& pOp = m_vOps.emplace_back();
-    pOp.nSequence = m_nNextSequence++;
+    pOp.nSequence = NextSequence();
     pOp.nType = nType;
     pOp.fX = static_cast<float>(nX);
     pOp.fY = static_cast<float>(nY);
@@ -96,7 +106,7 @@ void ImGuiSurface::AddOp(Op&& pOp)
     if (pOp.nType == OpType::Rectangle && pOp.fAlpha >= 1.0f && (pOp.nColor >> 24) == 0xFF)
         RemoveCoveredOps(pOp);
 
-    pOp.nSequence = m_nNextSequence++;
+    pOp.nSequence = NextSequence();
     m_vOps.push_back(std::move(pOp));
 }
 
