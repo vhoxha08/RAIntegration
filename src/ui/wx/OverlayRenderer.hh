@@ -23,11 +23,13 @@ class OverlayRenderer : public wxEvtHandler
 {
 public:
     /// <summary>
-    /// Receives the overlay: the part of the game area with something in it, at (nX, nY) from its top left corner, as
-    /// premultiplied ARGB pixels (0xAARRGGBB words, rows from top to bottom); all in pixels of the display. nullptr
-    /// when there's nothing to show. Called on the main thread; the pixels are only valid during the call.
+    /// Receives the overlay: a picture the size of the game area at the display's resolution (the canvas), of which
+    /// the rectangle at (nX, nY) changed: premultiplied ARGB pixels (0xAARRGGBB words, rows from top to bottom,
+    /// nStride words apart) starting with the rectangle's top left one. nullptr when there's nothing to show (the
+    /// next picture then comes in full). Called on the main thread; the pixels are only valid during the call.
     /// </summary>
-    using ImageHandler = void (*)(const uint32_t* pARGB, int nX, int nY, int nWidth, int nHeight);
+    using ImageHandler = void (*)(const uint32_t* pARGB, int nStride, int nCanvasWidth, int nCanvasHeight, int nX,
+                                  int nY, int nWidth, int nHeight);
 
     static void SetImageHandler(ImageHandler fHandler) noexcept;
 
@@ -52,17 +54,24 @@ private:
     void OnHostDestroyed(wxWindowDestroyEvent& event);
 
     static void RequestRender();
-    static uint64_t Signature(const std::vector<ra::ui::drawing::RecordingSurface::Op>& vOps, const wxSize& szClient,
-                              double fScale);
+    static uint64_t Hash(const ra::ui::drawing::RecordingSurface::Op& pOp);
 
     wxWindow* m_pHost;
     bool m_bVisible = false;
     SurfaceRenderer m_pRenderer;
+    // the canvas, as the host has it
     std::vector<uint32_t> m_vPixels;
-
-    // what the host has (see Signature)
+    int m_nCanvasWidth = 0;
+    int m_nCanvasHeight = 0;
     bool m_bHasImage = false;
-    uint64_t m_nSignature = 0;
+
+    // what's on it (in points of the game area)
+    struct DrawnOp
+    {
+        uint64_t nHash;
+        float fLeft, fTop, fRight, fBottom;
+    };
+    std::vector<DrawnOp> m_vDrawn;
 };
 
 } // namespace wx

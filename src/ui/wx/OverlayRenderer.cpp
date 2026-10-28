@@ -21,6 +21,7 @@
 #include <atomic>
 #include <cstring>
 #include <memory>
+#include <unordered_map>
 
 namespace ra {
 namespace ui {
@@ -135,8 +136,9 @@ void OverlayRenderer::OnHostDestroyed(wxWindowDestroyEvent& event)
 void OverlayRenderer::Clear()
 {
     m_bHasImage = false;
+    m_vDrawn.clear();
     if (s_fImageHandler)
-        s_fImageHandler(nullptr, 0, 0, 0, 0);
+        s_fImageHandler(nullptr, 0, 0, 0, 0, 0, 0, 0);
 }
 
 void OverlayRenderer::Render()
@@ -153,81 +155,115 @@ void OverlayRenderer::Render()
     auto& pOverlayManager = ra::services::ServiceLocator::GetMutable<ra::ui::viewmodels::OverlayManager>();
     pOverlayManager.Render(pSurface, true);
 
-    // only the part of the game area with something in it is drawn and handed over (popups are small)
-    double fLeft = szClient.GetWidth(), fTop = szClient.GetHeight(), fRight = 0.0, fBottom = 0.0;
+    // what's drawn, and where
+    std::vector<DrawnOp> vDrawn;
     for (const auto& pOp : pSurface.GetOps())
     {
-        if (pOp.fAlpha <= 0.0f)
+        DrawnOp pDrawn;
+        pDrawn.fLeft = std::max(pOp.fX, pOp.fClipLeft);
+        pDrawn.fTop = std::max(pOp.fY, pOp.fClipTop);
+        pDrawn.fRight = std::min(pOp.fX + pOp.fWidth, pOp.fClipRight);
+        pDrawn.fBottom = std::min(pOp.fY + pOp.fHeight, pOp.fClipBottom);
+        if (pOp.fAlpha <= 0.0f || pDrawn.fRight <= pDrawn.fLeft || pDrawn.fBottom <= pDrawn.fTop)
             continue;
 
-        fLeft = std::min(fLeft, static_cast<double>(std::max(pOp.fX, pOp.fClipLeft)));
-        fTop = std::min(fTop, static_cast<double>(std::max(pOp.fY, pOp.fClipTop)));
-        fRight = std::max(fRight, static_cast<double>(std::min(pOp.fX + pOp.fWidth, pOp.fClipRight)));
-        fBottom = std::max(fBottom, static_cast<double>(std::min(pOp.fY + pOp.fHeight, pOp.fClipBottom)));
+        pDrawn.nHash = Hash(pOp);
+        vDrawn.push_back(pDrawn);
     }
-    if (fRight <= fLeft || fBottom <= fTop)
+    if (vDrawn.empty())
     {
         Clear();
         return;
     }
 
-    // the overlay manager asks again and again while the in-game overlay is shown (it gets the controller's input
-    // every frame), mostly for the same picture: don't draw (and hand over) the same thing again
+    // Like the Win32 overlay, only what changed is drawn again (the overlay manager asks again and again while the
+    // in-game overlay is shown, which gets the controller's input every frame): the parts covered by what was drawn
+    // last time and isn't anymore, or what's new.
     const double fScale = m_pHost->GetDPIScaleFactor();
-    const uint64_t nSignature = Signature(pSurface.GetOps(), szClient, fScale);
-    if (m_bHasImage && nSignature == m_nSignature)
-        return;
-
     const int nCanvasWidth = static_cast<int>(szClient.GetWidth() * fScale + 0.5);
     const int nCanvasHeight = static_cast<int>(szClient.GetHeight() * fScale + 0.5);
+    float fLeft = 0.0f, fTop = 0.0f, fRight = 0.0f, fBottom = 0.0f;
+    if (!m_bHasImage || nCanvasWidth != m_nCanvasWidth || nCanvasHeight != m_nCanvasHeight)
+    {
+        m_nCanvasWidth = nCanvasWidth;
+        m_nCanvasHeight = nCanvasHeight;
+        m_vPixels.resize(static_cast<size_t>(nCanvasWidth) * nCanvasHeight);
+        fRight = static_cast<float>(szClient.GetWidth());
+        fBottom = static_cast<float>(szClient.GetHeight());
+    }
+    else
+    {
+        std::unordered_map<uint64_t, int> mCounts;
+        for (const auto& pDrawn : m_vDrawn)
+            ++mCounts[pDrawn.nHash];
+        for (const auto& pDrawn : vDrawn)
+            --mCounts[pDrawn.nHash];
+
+        const auto fAddChanged = [&mCounts, &fLeft, &fTop, &fRight, &fBottom](const DrawnOp& pDrawn) {
+            if (mCounts[pDrawn.nHash] == 0)
+                return;
+            if (fRight <= fLeft)
+            {
+                fLeft = pDrawn.fLeft;
+                fTop = pDrawn.fTop;
+                fRight = pDrawn.fRight;
+                fBottom = pDrawn.fBottom;
+            }
+            else
+            {
+                fLeft = std::min(fLeft, pDrawn.fLeft);
+                fTop = std::min(fTop, pDrawn.fTop);
+                fRight = std::max(fRight, pDrawn.fRight);
+                fBottom = std::max(fBottom, pDrawn.fBottom);
+            }
+        };
+        for (const auto& pDrawn : m_vDrawn)
+            fAddChanged(pDrawn);
+        for (const auto& pDrawn : vDrawn)
+            fAddChanged(pDrawn);
+
+        if (fRight <= fLeft)
+            return; // the same picture
+    }
+    m_vDrawn = std::move(vDrawn);
+
+    // in pixels of the display, with a little room for antialiasing
     const int nX = std::max(0, static_cast<int>(fLeft * fScale) - 2);
     const int nY = std::max(0, static_cast<int>(fTop * fScale) - 2);
     const int nWidth = std::min(nCanvasWidth, static_cast<int>(fRight * fScale + 0.5) + 2) - nX;
     const int nHeight = std::min(nCanvasHeight, static_cast<int>(fBottom * fScale + 0.5) + 2) - nY;
     if (nWidth <= 0 || nHeight <= 0)
-    {
-        Clear();
         return;
-    }
 
-    // like the Win32 overlay, a transparent theme draws everything at 90% opacity (a layer is slow for a picture the
-    // size of the game area: on macOS, Core Graphics applies the opacity to everything drawn instead)
+    // the part is drawn again from scratch
+    for (int y = nY; y < nY + nHeight; ++y)
+        memset(&m_vPixels[static_cast<size_t>(y) * nCanvasWidth + nX], 0, static_cast<size_t>(nWidth) * 4);
+
+    // like the Win32 overlay, a transparent theme draws everything at 90% opacity
     const bool bTranslucent = ra::services::ServiceLocator::Get<ra::ui::OverlayTheme>().Transparent();
-#ifdef __WXOSX__
-    const bool bLayer = false;
-#else
-    const bool bLayer = bTranslucent;
-#endif
-    const auto fDraw = [this, &pSurface, fScale, bLayer](wxGraphicsContext& pContext) {
-        if (bLayer)
-            pContext.BeginLayer(0.9);
-        m_pRenderer.Draw(pContext, pSurface.GetOps(), fScale);
-        if (bLayer)
-            pContext.EndLayer();
-    };
-
-    m_vPixels.assign(static_cast<size_t>(nWidth) * nHeight, 0);
 
 #ifdef __WXOSX__
     // drawn straight into the pixels handed to the host: premultiplied 0xAARRGGBB words are what Core Graphics
     // draws as "premultiplied first, 32 bit little endian"
     CGColorSpaceRef pColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
-    CGContextRef pBitmapContext = CGBitmapContextCreate(m_vPixels.data(), nWidth, nHeight, 8, nWidth * 4, pColorSpace,
+    CGContextRef pBitmapContext = CGBitmapContextCreate(m_vPixels.data(), nCanvasWidth, nCanvasHeight, 8,
+                                                        static_cast<size_t>(nCanvasWidth) * 4, pColorSpace,
                                                         kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
     CGColorSpaceRelease(pColorSpace);
     if (pBitmapContext == nullptr)
         return;
 
-    // in points of the game area, from its top left corner (Core Graphics starts at the bottom left)
-    CGContextTranslateCTM(pBitmapContext, -nX, nHeight + nY);
+    // only the part (Core Graphics counts from the bottom left), then in points of the game area from its top left
+    CGContextClipToRect(pBitmapContext, CGRectMake(nX, nCanvasHeight - nY - nHeight, nWidth, nHeight));
+    CGContextTranslateCTM(pBitmapContext, 0, nCanvasHeight);
     CGContextScaleCTM(pBitmapContext, fScale, -fScale);
-    if (bTranslucent)
+    if (bTranslucent) // (applied to everything drawn: a layer is slow)
         CGContextSetAlpha(pBitmapContext, 0.9);
     {
         std::unique_ptr<wxGraphicsContext> pContext(
             wxGraphicsRenderer::GetDefaultRenderer()->CreateContextFromNativeContext(pBitmapContext));
         if (pContext)
-            fDraw(*pContext);
+            m_pRenderer.Draw(*pContext, pSurface.GetOps(), fScale);
     }
     CGContextRelease(pBitmapContext);
 #else
@@ -242,7 +278,11 @@ void OverlayRenderer::Render()
         if (!pContext)
             return;
         pContext->Translate(-nX / fScale, -nY / fScale);
-        fDraw(*pContext);
+        if (bTranslucent)
+            pContext->BeginLayer(0.9);
+        m_pRenderer.Draw(*pContext, pSurface.GetOps(), fScale);
+        if (bTranslucent)
+            pContext->EndLayer();
     }
 
     // the bitmap holds premultiplied pixels
@@ -250,10 +290,10 @@ void OverlayRenderer::Render()
     if (!pData)
         return;
 
-    auto* pPixel = m_vPixels.data();
     wxAlphaPixelData::Iterator pRow(pData);
     for (int y = 0; y < nHeight; ++y)
     {
+        auto* pPixel = &m_vPixels[static_cast<size_t>(nY + y) * nCanvasWidth + nX];
         wxAlphaPixelData::Iterator pColumn = pRow;
         for (int x = 0; x < nWidth; ++x, ++pColumn)
         {
@@ -264,15 +304,16 @@ void OverlayRenderer::Render()
     }
 #endif
 
-    m_nSignature = nSignature;
     m_bHasImage = true;
 
     if (s_fImageHandler)
-        s_fImageHandler(m_vPixels.data(), nX, nY, nWidth, nHeight);
+    {
+        s_fImageHandler(&m_vPixels[static_cast<size_t>(nY) * nCanvasWidth + nX], nCanvasWidth, nCanvasWidth,
+                        nCanvasHeight, nX, nY, nWidth, nHeight);
+    }
 }
 
-uint64_t OverlayRenderer::Signature(const std::vector<ra::ui::drawing::RecordingSurface::Op>& vOps, const wxSize& szClient,
-                                    double fScale)
+uint64_t OverlayRenderer::Hash(const ra::ui::drawing::RecordingSurface::Op& pOp)
 {
     // FNV-1a over everything that changes what's drawn
     uint64_t nHash = 14695981039346656037ULL;
@@ -283,35 +324,29 @@ uint64_t OverlayRenderer::Signature(const std::vector<ra::ui::drawing::Recording
     };
     const auto fAddValue = [&fAdd](const auto& tValue) { fAdd(&tValue, sizeof(tValue)); };
 
-    fAddValue(szClient.GetWidth());
-    fAddValue(szClient.GetHeight());
-    fAddValue(fScale);
-    for (const auto& pOp : vOps)
+    fAddValue(pOp.nType);
+    fAddValue(pOp.fX);
+    fAddValue(pOp.fY);
+    fAddValue(pOp.fWidth);
+    fAddValue(pOp.fHeight);
+    fAddValue(pOp.fClipLeft);
+    fAddValue(pOp.fClipTop);
+    fAddValue(pOp.fClipRight);
+    fAddValue(pOp.fClipBottom);
+    fAddValue(pOp.nColor);
+    fAddValue(pOp.fAlpha);
+    fAddValue(pOp.fFontSize);
+    fAddValue(pOp.bBold);
+    fAdd(pOp.sFontFace.data(), pOp.sFontFace.size());
+    fAdd(pOp.sText.data(), pOp.sText.size());
+    fAddValue(pOp.nImageType);
+    fAdd(pOp.sImageName.data(), pOp.sImageName.size());
+    fAddValue(pOp.bStretch);
+    if (pOp.pPixels)
     {
-        fAddValue(pOp.nType);
-        fAddValue(pOp.fX);
-        fAddValue(pOp.fY);
-        fAddValue(pOp.fWidth);
-        fAddValue(pOp.fHeight);
-        fAddValue(pOp.fClipLeft);
-        fAddValue(pOp.fClipTop);
-        fAddValue(pOp.fClipRight);
-        fAddValue(pOp.fClipBottom);
-        fAddValue(pOp.nColor);
-        fAddValue(pOp.fAlpha);
-        fAddValue(pOp.fFontSize);
-        fAddValue(pOp.bBold);
-        fAdd(pOp.sFontFace.data(), pOp.sFontFace.size());
-        fAdd(pOp.sText.data(), pOp.sText.size());
-        fAddValue(pOp.nImageType);
-        fAdd(pOp.sImageName.data(), pOp.sImageName.size());
-        fAddValue(pOp.bStretch);
-        if (pOp.pPixels)
-        {
-            fAddValue(pOp.pPixels->nWidth);
-            fAddValue(pOp.pPixels->nHeight);
-            fAdd(pOp.pPixels->vPixels.data(), pOp.pPixels->vPixels.size() * sizeof(uint32_t));
-        }
+        fAddValue(pOp.pPixels->nWidth);
+        fAddValue(pOp.pPixels->nHeight);
+        fAdd(pOp.pPixels->vPixels.data(), pOp.pPixels->vPixels.size() * sizeof(uint32_t));
     }
 
     return nHash;

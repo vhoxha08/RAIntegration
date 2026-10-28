@@ -162,13 +162,15 @@ extern "C" {
     // Sound playback. fpPlayFile receives the absolute path of a .wav file.
     API void CCONV _RA_SetAudioHandlers(void (*fpPlayFile)(const char* sUtf8Path), void (*fpBeep)(void));
 
-    // Receives the toolkit's overlay (popups, scoreboards, the in-game overlay) to draw over the game: the part of the
-    // game area (the client area of the window passed to RA_Init) with something in it, at (nX, nY) from its top left
-    // corner, as premultiplied ARGB pixels (0xAARRGGBB words, rows from top to bottom); all in pixels of the display.
-    // NULL when there's nothing to show. Called on the UI thread whenever the overlay changes; the pixels are only
+    // Receives the toolkit's overlay (popups, scoreboards, the in-game overlay) to draw over the game: a picture the
+    // size of the game area (the client area of the window passed to RA_Init) at the display's resolution (the
+    // canvas), of which the rectangle at (nX, nY) changed: premultiplied ARGB pixels (0xAARRGGBB words, rows from top
+    // to bottom, nStride words apart) starting with the rectangle's top left one. NULL when there's nothing to show
+    // (the next picture then comes in full). Called on the UI thread whenever the overlay changes; the pixels are only
     // valid during the call.
-    API void CCONV _RA_SetOverlayImageHandler(void (*fpHandleImage)(const uint32_t* pARGB, int nX, int nY, int nWidth,
-                                                                    int nHeight));
+    API void CCONV _RA_SetOverlayImageHandler(void (*fpHandleImage)(const uint32_t* pARGB, int nStride,
+                                                                    int nCanvasWidth, int nCanvasHeight, int nX, int nY,
+                                                                    int nWidth, int nHeight));
 
     // Shows the platform's file dialog on the UI thread. nMode: 1 = open, 2 = save, 3 = select folder.
     // sFilters is a list of "Description\tspec\n" entries where spec is a comma separated list of extensions

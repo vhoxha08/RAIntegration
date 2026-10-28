@@ -50,7 +50,8 @@ void PlatformUi::SetMainWindow(void* hWnd)
         ra::ui::wx::OverlayRenderer::Attach(static_cast<wxWindow*>(hWnd));
 }
 
-void PlatformUi::SetOverlayImageHandler(void (*fpHandleImage)(const uint32_t* pARGB, int nX, int nY, int nWidth,
+void PlatformUi::SetOverlayImageHandler(void (*fpHandleImage)(const uint32_t* pARGB, int nStride, int nCanvasWidth,
+                                                             int nCanvasHeight, int nX, int nY, int nWidth,
                                                              int nHeight))
 {
     ra::ui::wx::OverlayRenderer::SetImageHandler(fpHandleImage);
