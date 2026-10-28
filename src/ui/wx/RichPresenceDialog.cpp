@@ -25,6 +25,7 @@ RichPresenceDialog::RichPresenceDialog(ra::ui::viewmodels::RichPresenceMonitorVi
         event.Skip();
     });
 
+    RememberSizeAndPosition("Rich Presence Monitor");
     UpdateControls();
 }
 

@@ -60,6 +60,7 @@ AssetEditorDialog::AssetEditorDialog(AssetEditorViewModel& vmAssetEditor) :
     SetMinSize(FromDIP(wxSize(860, 480)));
     Fit();
 
+    RememberSizeAndPosition("Achievement Editor");
     UpdateControls();
 }
 

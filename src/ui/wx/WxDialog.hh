@@ -9,6 +9,7 @@
 
 #include <atomic>
 #include <functional>
+#include <string>
 
 namespace ra {
 namespace ui {
@@ -36,6 +37,13 @@ public:
     void SetModeless() noexcept { m_bModeless = true; }
 
 protected:
+    /// <summary>
+    /// Restores the window's size and position saved under <paramref name="sKey" /> (the same keys as the Win32
+    /// dialogs, in the "Window Positions" preference) and saves them when the user moves or resizes the window.
+    /// Call at the end of the constructor, after the layout.
+    /// </summary>
+    void RememberSizeAndPosition(const char* sKey);
+
     /// <summary>
     /// Closes the window with the given result.
     /// </summary>
@@ -72,6 +80,7 @@ private:
 
     ChangeWatcher m_pWatcher;
     std::atomic<bool> m_bUpdateScheduled{false};
+    std::string m_sSizeAndPositionKey;
     bool m_bModeless = false;
     bool m_bClosing = false;
 };

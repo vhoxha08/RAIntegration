@@ -168,14 +168,36 @@ void RunStep(const Step& pStep)
             Cancel([pWindow contentView]);
         fprintf(stderr, "RA_WX_TEST cancelled menus\n");
     }
+    else if (pStep.sAction == "movewin")
+    {
+        // "movewin x y title prefix": moves a window (top left corner, screen coordinates from the top)
+        int nX = 0, nY = 0, nConsumed = 0;
+        if (sscanf(pStep.sArgs.c_str(), "%d %d %n", &nX, &nY, &nConsumed) >= 2)
+        {
+            NSString* sPrefix = [NSString stringWithUTF8String:pStep.sArgs.substr(static_cast<size_t>(nConsumed)).c_str()];
+            for (NSWindow* pWindow in [NSApp windows])
+            {
+                if (![pWindow isVisible] || ![[pWindow title] hasPrefix:sPrefix])
+                    continue;
+                const CGFloat fScreenTop = NSMaxY([[[NSScreen screens] firstObject] frame]);
+                [pWindow setFrameTopLeftPoint:NSMakePoint(nX, fScreenTop - nY)];
+                fprintf(stderr, "RA_WX_TEST moved '%s' to %d,%d\n", [[pWindow title] UTF8String], nX, nY);
+                break;
+            }
+        }
+    }
     else if (pStep.sAction == "list")
     {
         for (NSWindow* pWindow in [NSApp windows])
         {
             if (![pWindow isVisible])
                 continue;
-            fprintf(stderr, "RA_WX_TEST window '%s'%s\n", [[pWindow title] UTF8String],
-                    pWindow == [NSApp modalWindow] ? " (modal)" : "");
+            const CGFloat fScreenTop = NSMaxY([[[NSScreen screens] firstObject] frame]);
+            const NSRect rFrame = [pWindow frame];
+            fprintf(stderr, "RA_WX_TEST window '%s'%s at %d,%d size %dx%d\n", [[pWindow title] UTF8String],
+                    pWindow == [NSApp modalWindow] ? " (modal)" : "", static_cast<int>(rFrame.origin.x),
+                    static_cast<int>(fScreenTop - NSMaxY(rFrame)), static_cast<int>(rFrame.size.width),
+                    static_cast<int>(rFrame.size.height));
             ListButtons([pWindow contentView], 0);
         }
     }

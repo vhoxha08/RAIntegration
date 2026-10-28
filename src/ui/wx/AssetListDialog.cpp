@@ -160,6 +160,7 @@ AssetListDialog::AssetListDialog(AssetListViewModel& vmAssetList) :
     pSizer->Add(pButtons, 0, wxEXPAND | wxALL, 8);
 
     SetSizerAndFit(pSizer);
+    RememberSizeAndPosition("Achievements");
     UpdateControls();
 }
 

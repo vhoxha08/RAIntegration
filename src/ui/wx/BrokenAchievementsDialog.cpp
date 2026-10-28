@@ -50,6 +50,7 @@ BrokenAchievementsDialog::BrokenAchievementsDialog(
     pSizer->Add(pButtons, 0, wxEXPAND | wxALL, 10);
 
     SetSizerAndFit(pSizer);
+    RememberSizeAndPosition("Report Broken Achievements");
     UpdateControls();
 }
 

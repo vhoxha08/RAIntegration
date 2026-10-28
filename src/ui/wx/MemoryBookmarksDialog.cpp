@@ -75,6 +75,7 @@ MemoryBookmarksDialog::MemoryBookmarksDialog(MemoryBookmarksViewModel& vmMemoryB
     pSizer->Add(pBottom, 0, wxEXPAND | wxALL, 8);
 
     SetSizerAndFit(pSizer);
+    RememberSizeAndPosition("Memory Bookmarks");
     UpdateControls();
 }
 

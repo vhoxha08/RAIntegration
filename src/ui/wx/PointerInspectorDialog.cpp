@@ -95,6 +95,7 @@ PointerInspectorDialog::PointerInspectorDialog(PointerInspectorViewModel& vmPoin
     pSizer->Add(pButtons, 0, wxEXPAND | wxALL, 8);
 
     SetSizerAndFit(pSizer);
+    RememberSizeAndPosition("Pointer Inspector");
     UpdateControls();
 }
 

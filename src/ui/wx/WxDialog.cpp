@@ -1,9 +1,16 @@
 #include "WxDialog.hh"
 
+#include "services/IWindowConfiguration.hh"
+#include "services/ServiceLocator.hh"
+
 #include "ui/wx/WxApp.hh"
 
 #include <wx/button.h>
+#include <wx/display.h>
 #include <wx/thread.h>
+
+#include <algorithm>
+#include <climits>
 
 namespace ra {
 namespace ui {
@@ -41,6 +48,52 @@ void WxDialog::ScheduleUpdate()
 void WxDialog::OnViewModelBoolValueChanged(const BoolModelProperty::ChangeArgs&)
 {
     ScheduleUpdate();
+}
+
+void WxDialog::RememberSizeAndPosition(const char* sKey)
+{
+    auto& pWindowConfiguration = ra::services::ServiceLocator::GetMutable<ra::services::IWindowConfiguration>();
+
+    // positions are screen coordinates (the Win32 dialogs store them relative to the emulator's window, which the
+    // toolkit doesn't know here). Ignore a position that's no longer on a display.
+    const auto oSize = pWindowConfiguration.GetWindowSize(sKey);
+    if (oSize.Width != INT32_MIN && oSize.Height != INT32_MIN)
+    {
+        const wxSize szMinimum = GetMinSize();
+        SetSize(std::max(oSize.Width, szMinimum.GetWidth()), std::max(oSize.Height, szMinimum.GetHeight()));
+    }
+
+    const auto oPosition = pWindowConfiguration.GetWindowPosition(sKey);
+    if (oPosition.X != INT32_MIN && oPosition.Y != INT32_MIN &&
+        wxDisplay::GetFromPoint(wxPoint(oPosition.X + 40, oPosition.Y + 10)) != wxNOT_FOUND)
+    {
+        Move(oPosition.X, oPosition.Y);
+    }
+    else
+    {
+        CentreOnScreen();
+    }
+
+    m_sSizeAndPositionKey = sKey;
+
+    Bind(wxEVT_MOVE, [this](wxMoveEvent& event) {
+        if (IsShown() && !IsIconized())
+        {
+            const wxPoint pPosition = GetPosition();
+            ra::services::ServiceLocator::GetMutable<ra::services::IWindowConfiguration>().SetWindowPosition(
+                m_sSizeAndPositionKey, {pPosition.x, pPosition.y});
+        }
+        event.Skip();
+    });
+    Bind(wxEVT_SIZE, [this](wxSizeEvent& event) {
+        if (IsShown() && !IsIconized())
+        {
+            const wxSize szWindow = GetSize();
+            ra::services::ServiceLocator::GetMutable<ra::services::IWindowConfiguration>().SetWindowSize(
+                m_sSizeAndPositionKey, {szWindow.GetWidth(), szWindow.GetHeight()});
+        }
+        event.Skip();
+    });
 }
 
 void WxDialog::CloseWithResult(DialogResult nResult)

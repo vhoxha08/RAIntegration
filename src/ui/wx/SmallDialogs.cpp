@@ -106,6 +106,7 @@ MemoryNotesDialog::MemoryNotesDialog(MemoryNotesViewModel& vmMemoryNotes) :
     pSizer->Add(pButtons, 0, wxEXPAND | wxALL, 8);
 
     SetSizerAndFit(pSizer);
+    RememberSizeAndPosition("Code Notes");
     UpdateControls();
 }
 
@@ -157,6 +158,7 @@ MemoryRegionsDialog::MemoryRegionsDialog(MemoryRegionsViewModel& vmMemoryRegions
     pSizer->Add(pButtons, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 8);
 
     SetSizerAndFit(pSizer);
+    RememberSizeAndPosition("Memory Regions");
     UpdateControls();
 }
 
@@ -244,6 +246,7 @@ TriggerSummaryDialog::TriggerSummaryDialog(TriggerSummaryViewModel& vmTriggerSum
     pSizer->Add(pButtons, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 8);
 
     SetSizerAndFit(pSizer);
+    RememberSizeAndPosition("Trigger Summary");
 }
 
 } // namespace wx

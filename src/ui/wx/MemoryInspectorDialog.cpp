@@ -123,6 +123,7 @@ MemoryInspectorDialog::MemoryInspectorDialog(MemoryInspectorViewModel& vmMemoryI
     m_pScrollTimer.Bind(wxEVT_TIMER, [this](wxTimerEvent&) { SyncScrollOffset(); });
     m_pScrollTimer.Start(100);
 
+    RememberSizeAndPosition("Memory Inspector");
     UpdateControls();
 }
 

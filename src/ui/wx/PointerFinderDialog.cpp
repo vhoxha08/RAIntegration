@@ -102,6 +102,7 @@ PointerFinderDialog::PointerFinderDialog(PointerFinderViewModel& vmPointerFinder
     }
 
     SetSizerAndFit(pSizer);
+    RememberSizeAndPosition("Pointer Finder");
     UpdateControls();
 }
 
