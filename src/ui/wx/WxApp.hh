@@ -19,6 +19,12 @@ namespace wx {
 bool EnsureWxInitialized();
 
 /// <summary>
+/// Makes the editor colors follow the system's light or dark appearance (unless they come from a file).
+/// </summary>
+/// <returns><c>true</c> if the colors changed.</returns>
+bool ApplySystemAppearance();
+
+/// <summary>
 /// Handles wxWidgets' queued and idle work. Called from the host's main loop (_RA_ProcessUIThreadActions);
 /// the native events themselves are dispatched by the host's event pump.
 /// </summary>

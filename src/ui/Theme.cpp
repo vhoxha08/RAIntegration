@@ -112,6 +112,39 @@ void OverlayTheme::LoadFromFile()
     pJson.TryGetBoolean("Transparent", m_bTransparent);
 }
 
+void EditorTheme::ApplyLightColors() noexcept
+{
+    const EditorTheme pDefaults;
+    m_colorBackground = pDefaults.m_colorBackground;
+    m_colorSeparator = pDefaults.m_colorSeparator;
+    m_colorCursor = pDefaults.m_colorCursor;
+    m_colorNormal = pDefaults.m_colorNormal;
+    m_colorSelected = pDefaults.m_colorSelected;
+    m_colorHasNote = pDefaults.m_colorHasNote;
+    m_colorHasSurrogateNote = pDefaults.m_colorHasSurrogateNote;
+    m_colorHasBookmark = pDefaults.m_colorHasBookmark;
+    m_colorFrozen = pDefaults.m_colorFrozen;
+    m_colorHeader = pDefaults.m_colorHeader;
+    m_colorHeaderSelected = pDefaults.m_colorHeaderSelected;
+
+    m_colorNoteNormal = pDefaults.m_colorNoteNormal;
+    m_colorNoteModified = pDefaults.m_colorNoteModified;
+
+    m_colorTriggerIsTrue = pDefaults.m_colorTriggerIsTrue;
+    m_colorTriggerWasTrue = pDefaults.m_colorTriggerWasTrue;
+    m_colorTriggerBecomingTrue = pDefaults.m_colorTriggerBecomingTrue;
+    m_colorTriggerResetTrue = pDefaults.m_colorTriggerResetTrue;
+    m_colorTriggerPauseTrue = pDefaults.m_colorTriggerPauseTrue;
+
+    m_colorExplainConflicting = pDefaults.m_colorExplainConflicting;
+    m_colorExplainTriggerWhen = pDefaults.m_colorExplainTriggerWhen;
+    m_colorExplainWhile = pDefaults.m_colorExplainWhile;
+    m_colorExplainUnless = pDefaults.m_colorExplainUnless;
+    m_colorExplainStartingWhen = pDefaults.m_colorExplainStartingWhen;
+    m_colorExplainFailingWhen = pDefaults.m_colorExplainFailingWhen;
+    m_colorExplainImpotent = pDefaults.m_colorExplainImpotent;
+}
+
 void EditorTheme::ApplyDarkColors() noexcept
 {
     m_colorBackground = Color(255, 30, 30, 30);

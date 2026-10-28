@@ -62,6 +62,11 @@ public:
     void UpdateRenderImage();
 
     /// <summary>
+    /// The editor colors changed: redraws everything with them (UI thread).
+    /// </summary>
+    void OnThemeChanged();
+
+    /// <summary>
     /// Gets the image to render.
     /// </summary>
     const ra::ui::drawing::ISurface& GetRenderImage() const noexcept

@@ -50,6 +50,37 @@ bool s_bHostOwnsApp = false;
 
 } // namespace
 
+bool ApplySystemAppearance()
+{
+    // the editor colors default to a light theme; follow the system's dark mode unless they come from a file
+    if (!ra::services::ServiceLocator::Exists<ra::ui::EditorTheme>())
+        return false;
+
+    static bool s_bHasThemeFile = []() {
+        const auto& pFileSystem = ra::services::ServiceLocator::Get<ra::services::IFileSystem>();
+        return pFileSystem.GetFileSize(pFileSystem.BaseDirectory() + L"Overlay\\editor_theme.json") >= 0 ||
+               pFileSystem.GetFileSize(pFileSystem.BaseDirectory() + L"Overlay/editor_theme.json") >= 0;
+    }();
+    if (s_bHasThemeFile)
+        return false;
+
+    static int s_nApplied = -1; // -1 = the defaults (light), 0 = light, 1 = dark
+    const int nDark = wxSystemSettings::GetAppearance().IsDark() ? 1 : 0;
+    if (nDark == s_nApplied || (s_nApplied == -1 && nDark == 0))
+    {
+        s_nApplied = nDark;
+        return false;
+    }
+
+    auto& pEditorTheme = ra::services::ServiceLocator::GetMutable<ra::ui::EditorTheme>();
+    if (nDark)
+        pEditorTheme.ApplyDarkColors();
+    else
+        pEditorTheme.ApplyLightColors();
+    s_nApplied = nDark;
+    return true;
+}
+
 bool EnsureWxInitialized()
 {
     if (s_nState == WxState::Running)
@@ -87,16 +118,7 @@ bool EnsureWxInitialized()
     // badges and other images are PNG/JPEG files
     wxInitAllImageHandlers();
 
-    // the editor colors default to a light theme; follow the system's dark mode unless they come from a file
-    if (wxSystemSettings::GetAppearance().IsDark() && ra::services::ServiceLocator::Exists<ra::ui::EditorTheme>())
-    {
-        const auto& pFileSystem = ra::services::ServiceLocator::Get<ra::services::IFileSystem>();
-        if (pFileSystem.GetFileSize(pFileSystem.BaseDirectory() + L"Overlay\\editor_theme.json") < 0 &&
-            pFileSystem.GetFileSize(pFileSystem.BaseDirectory() + L"Overlay/editor_theme.json") < 0)
-        {
-            ra::services::ServiceLocator::GetMutable<ra::ui::EditorTheme>().ApplyDarkColors();
-        }
-    }
+    ApplySystemAppearance();
 
     // the toolkit reports problems itself; wxWidgets' own messages go to the log instead of a dialog
     delete wxLog::SetActiveTarget(new wxLogStderr());

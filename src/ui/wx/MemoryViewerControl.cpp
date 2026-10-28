@@ -38,6 +38,12 @@ MemoryViewerControl::MemoryViewerControl(wxWindow* pParent, ra::ui::viewmodels::
     m_vmViewer.AddRepaintNotifyTarget(*this);
 
     Bind(wxEVT_PAINT, &MemoryViewerControl::OnPaint, this);
+    Bind(wxEVT_SYS_COLOUR_CHANGED, [this](wxSysColourChangedEvent& event) {
+        // the dialog applied the colors for the new appearance first
+        m_vmViewer.OnThemeChanged();
+        Refresh(false);
+        event.Skip();
+    });
     Bind(wxEVT_SIZE, &MemoryViewerControl::OnSize, this);
     Bind(wxEVT_LEFT_DOWN, &MemoryViewerControl::OnLeftDown, this);
     Bind(wxEVT_MOUSEWHEEL, &MemoryViewerControl::OnMouseWheel, this);

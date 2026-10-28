@@ -68,6 +68,11 @@ public:
     /// </summary>
     void ApplyDarkColors() noexcept;
 
+    /// <summary>
+    /// Restores the default (light) colors, i.e. when the system switches back from dark mode.
+    /// </summary>
+    void ApplyLightColors() noexcept;
+
 private:
     std::string m_sFontMemoryViewer = "Consolas";
     int m_nFontSizeMemoryViewer = 17;

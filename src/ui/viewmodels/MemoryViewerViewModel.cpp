@@ -1269,6 +1269,13 @@ void MemoryViewerViewModel::BuildFontSurface()
     s_pFontASCIISurface->WriteText(nX, s_szChar.Height - 1, s_nFont, nFadedSelectedColor, sHexChar);
 }
 
+void MemoryViewerViewModel::OnThemeChanged()
+{
+    // the characters are drawn in the theme's colors once
+    BuildFontSurface();
+    ResetSurface();
+}
+
 void MemoryViewerViewModel::ResetSurface() noexcept
 {
     m_bResetSurface = true;

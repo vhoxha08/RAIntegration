@@ -23,6 +23,14 @@ WxDialog::WxDialog(WindowViewModelBase& vmWindow, long nStyle) :
 {
     m_vmWindow.AddNotifyTarget(*this);
 
+    // the system may have switched between light and dark since the colors were chosen
+    ApplySystemAppearance();
+    Bind(wxEVT_SYS_COLOUR_CHANGED, [this](wxSysColourChangedEvent& event) {
+        if (ApplySystemAppearance())
+            Refresh();
+        event.Skip(); // on to the controls (i.e. the memory viewer rebuilds its images)
+    });
+
     Bind(wxEVT_CLOSE_WINDOW, &WxDialog::OnCloseWindow, this);
     Bind(wxEVT_BUTTON, &WxDialog::OnButton, this, wxID_CANCEL);
 }
