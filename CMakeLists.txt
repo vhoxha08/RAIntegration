@@ -191,7 +191,7 @@ if(NOT WIN32)
       set(${lib} builtin CACHE STRING "" FORCE)
     endforeach()
     foreach(feature wxUSE_LIBTIFF wxUSE_WEBVIEW wxUSE_MEDIACTRL wxUSE_STC wxUSE_RICHTEXT wxUSE_RIBBON
-                    wxUSE_PROPGRID wxUSE_AUI wxUSE_XRC wxUSE_OPENGL wxUSE_WEBREQUEST wxUSE_SECRETSTORE
+                    wxUSE_PROPGRID wxUSE_AUI wxUSE_XRC wxUSE_WEBREQUEST wxUSE_SECRETSTORE
                     wxUSE_LIBSDL wxUSE_LIBMSPACK wxUSE_SOUND)
       set(${feature} OFF CACHE BOOL "" FORCE)
     endforeach()

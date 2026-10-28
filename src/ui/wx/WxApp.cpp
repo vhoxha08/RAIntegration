@@ -45,6 +45,9 @@ enum class WxState
 
 WxState s_nState = WxState::NotStarted;
 
+// the host is a wxWidgets application itself: it owns wxTheApp and runs the event loop
+bool s_bHostOwnsApp = false;
+
 } // namespace
 
 bool EnsureWxInitialized()
@@ -54,21 +57,29 @@ bool EnsureWxInitialized()
     if (s_nState != WxState::NotStarted)
         return false;
 
+    if (wxTheApp != nullptr)
+    {
+        // the host is a wxWidgets application: share its application object and event loop
+        s_bHostOwnsApp = true;
+    }
+    else
+    {
 #ifdef __WXOSX__
-    // the host (SDL) already owns NSApplication and its event loop: run as a "plugin" so wxWidgets doesn't
-    // replace the application delegate or try to run the application itself
-    wxApp::sm_isEmbedded = true;
+        // the host (i.e. SDL) already owns NSApplication and its event loop: run as a "plugin" so wxWidgets doesn't
+        // replace the application delegate or try to run the application itself
+        wxApp::sm_isEmbedded = true;
 #endif
 
-    wxApp::SetInstance(new ToolkitApp());
+        wxApp::SetInstance(new ToolkitApp());
 
-    static int s_nArgc = 1;
-    static char s_sArg0[] = "RAIntegration";
-    static char* s_pArgv[] = {s_sArg0, nullptr};
-    if (!wxEntryStart(s_nArgc, s_pArgv) || !wxTheApp->CallOnInit())
-    {
-        s_nState = WxState::Failed;
-        return false;
+        static int s_nArgc = 1;
+        static char s_sArg0[] = "RAIntegration";
+        static char* s_pArgv[] = {s_sArg0, nullptr};
+        if (!wxEntryStart(s_nArgc, s_pArgv) || !wxTheApp->CallOnInit())
+        {
+            s_nState = WxState::Failed;
+            return false;
+        }
     }
 
     s_nState = WxState::Running;
@@ -109,7 +120,8 @@ bool EnsureWxInitialized()
 
 void PumpWxEvents()
 {
-    if (s_nState != WxState::Running || wxTheApp == nullptr)
+    // a wxWidgets host runs the event loop itself
+    if (s_nState != WxState::Running || wxTheApp == nullptr || s_bHostOwnsApp)
         return;
 
     wxTheApp->ProcessPendingEvents();
@@ -122,8 +134,11 @@ void ShutdownWx()
         return;
 
     ra::ui::imgui::ImGuiSurface::SetTextMeasurer(nullptr);
-    wxTheApp->OnExit();
-    wxEntryCleanup();
+    if (!s_bHostOwnsApp)
+    {
+        wxTheApp->OnExit();
+        wxEntryCleanup();
+    }
     s_nState = WxState::Stopped;
 }
 

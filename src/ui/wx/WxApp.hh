@@ -12,7 +12,8 @@ namespace ui {
 namespace wx {
 
 /// <summary>
-/// Starts wxWidgets inside the host application (the host owns the main loop). Safe to call repeatedly.
+/// Starts wxWidgets inside the host application (the host owns the main loop). If the host is a wxWidgets
+/// application itself, its application object is used. Safe to call repeatedly.
 /// </summary>
 /// <returns><c>false</c> if wxWidgets could not be initialized.</returns>
 bool EnsureWxInitialized();
