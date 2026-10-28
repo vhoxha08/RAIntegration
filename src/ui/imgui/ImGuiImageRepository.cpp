@@ -7,7 +7,7 @@
 #include "services/IFileSystem.hh"
 #include "services/ServiceLocator.hh"
 
-#include "ui/headless/HeadlessDesktop.hh"
+#include "ui/imgui/ImGuiOverlay.hh"
 #include "ui/imgui/ImGuiTextures.hh"
 
 #include "util/Log.hh"
@@ -26,14 +26,6 @@ static std::string GetKey(ImageType nType, const std::string& sName)
     return std::to_string(static_cast<int>(nType)) + ':' + sName;
 }
 
-static const ra::ui::headless::HeadlessDesktop* GetDesktop()
-{
-    if (!ra::services::ServiceLocator::Exists<ra::ui::IDesktop>())
-        return nullptr;
-
-    return dynamic_cast<const ra::ui::headless::HeadlessDesktop*>(&ra::services::ServiceLocator::Get<ra::ui::IDesktop>());
-}
-
 ImGuiImageRepository* ImGuiImageRepository::Get()
 {
     if (!ra::services::ServiceLocator::Exists<IImageRepository>())
@@ -45,8 +37,7 @@ ImGuiImageRepository* ImGuiImageRepository::Get()
 ImGuiImageRepository::~ImGuiImageRepository() noexcept
 {
     // the textures belong to the host's rendering context; only release them if we're on its thread
-    const auto* pDesktop = GetDesktop();
-    if (pDesktop != nullptr && pDesktop->IsOnUIThread() && GetTextureHandlers().fpDestroy != nullptr)
+    if (IsOnRenderThread() && GetTextureHandlers().fpDestroy != nullptr)
     {
         for (const auto& pPair : m_mTextures)
         {
@@ -62,14 +53,7 @@ void ImGuiImageRepository::DestroyTexture(uintptr_t nTexture)
     if (nTexture == 0 || fpDestroy == nullptr)
         return;
 
-    const auto* pDesktop = GetDesktop();
-    if (pDesktop == nullptr)
-        return;
-
-    if (pDesktop->IsOnUIThread())
-        fpDestroy(nTexture);
-    else
-        pDesktop->PostToUIThread([fpDestroy, nTexture]() { fpDestroy(nTexture); });
+    RunOnRenderThread([fpDestroy, nTexture]() { fpDestroy(nTexture); });
 }
 
 bool ImGuiImageRepository::IsImageAvailable(ImageType nType, const std::string& sName) const
@@ -174,20 +158,16 @@ void ImGuiImageRepository::FetchImage(ImageType nType, const std::string& sName,
 
 void ImGuiImageRepository::OnImageDownloaded(ImageType nType, const std::string& sName)
 {
-    // drop a texture made from an older copy of the file (on the UI thread, which owns the textures)
-    const auto* pDesktop = GetDesktop();
-    if (pDesktop != nullptr)
-    {
-        const std::string sKey = GetKey(nType, sName);
-        pDesktop->PostToUIThread([this, sKey]() {
-            const auto pIter = m_mTextures.find(sKey);
-            if (pIter != m_mTextures.end())
-            {
-                DestroyTexture(pIter->second.nTexture);
-                m_mTextures.erase(pIter);
-            }
-        });
-    }
+    // drop a texture made from an older copy of the file (on the render thread, which owns the textures)
+    const std::string sKey = GetKey(nType, sName);
+    RunOnRenderThread([this, sKey]() {
+        const auto pIter = m_mTextures.find(sKey);
+        if (pIter != m_mTextures.end())
+        {
+            DestroyTexture(pIter->second.nTexture);
+            m_mTextures.erase(pIter);
+        }
+    });
 
     OnImageChanged(nType, sName);
 }

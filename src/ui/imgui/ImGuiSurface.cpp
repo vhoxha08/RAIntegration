@@ -2,6 +2,7 @@
 
 #include "ui/IDesktop.hh"
 #include "ui/imgui/ImGuiImageRepository.hh"
+#include "ui/imgui/ImGuiOverlay.hh"
 #include "ui/imgui/ImGuiTextures.hh"
 
 #include "services/ServiceLocator.hh"
@@ -23,13 +24,12 @@ namespace imgui {
 
 static bool CanUseImGui()
 {
-    // ImGui is not thread safe; only measure text with it on the UI thread, and only while the host is building a
-    // frame (surfaces may also be measured by other UI code, i.e. native windows painting outside of a frame)
-    if (ImGui::GetCurrentContext() == nullptr || !ImGui::GetCurrentContext()->WithinFrameScope ||
-        !ra::services::ServiceLocator::Exists<ra::ui::IDesktop>())
+    // ImGui is not thread safe; only measure text with it on the render thread, and only while the host is building
+    // a frame (surfaces may also be measured by other UI code, i.e. native windows painting outside of a frame)
+    if (ImGui::GetCurrentContext() == nullptr || !ImGui::GetCurrentContext()->WithinFrameScope)
         return false;
 
-    return ra::services::ServiceLocator::Get<ra::ui::IDesktop>().IsOnUIThread();
+    return IsOnRenderThread();
 }
 
 // Text as UTF-8 for ImGui. U+2BC7/U+2BC8 (the overlay's page arrows) are missing from the fonts on many systems
