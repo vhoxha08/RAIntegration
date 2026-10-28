@@ -186,6 +186,41 @@ void RunStep(const Step& pStep)
             }
         }
     }
+    else if (pStep.sAction == "tablekey")
+    {
+        // "tablekey <key> <cmd|none> <window title prefix>": focuses the window's table and presses the key
+        char sKey[32] = {0}, sModifier[16] = {0};
+        int nConsumed = 0;
+        if (sscanf(pStep.sArgs.c_str(), "%31s %15s %n", sKey, sModifier, &nConsumed) >= 2)
+        {
+            NSString* sPrefix = [NSString stringWithUTF8String:pStep.sArgs.substr(static_cast<size_t>(nConsumed)).c_str()];
+            for (NSWindow* pWindow in [NSApp windows])
+            {
+                NSTableView* pTable = ([pWindow isVisible] && [[pWindow title] hasPrefix:sPrefix])
+                                          ? FindTable([pWindow contentView]) : nil;
+                if (pTable == nil)
+                    continue;
+
+                [pWindow makeFirstResponder:pTable];
+                NSString* sCharacters = [NSString stringWithUTF8String:sKey];
+                unsigned short nKeyCode = 0;
+                if (strcmp(sKey, "return") == 0) { sCharacters = @"\r"; nKeyCode = 36; }
+                else if (strcmp(sKey, "f2") == 0) { sCharacters = [NSString stringWithFormat:@"%C", (unichar)NSF2FunctionKey]; nKeyCode = 120; }
+                else if (strcmp(sKey, "a") == 0) nKeyCode = 0;
+                else if (strcmp(sKey, "d") == 0) nKeyCode = 2;
+                else if (strcmp(sKey, "c") == 0) nKeyCode = 8;
+                else if (strcmp(sKey, "v") == 0) nKeyCode = 9;
+                const NSEventModifierFlags nFlags = (strcmp(sModifier, "cmd") == 0) ? NSEventModifierFlagCommand : 0;
+                NSEvent* pEvent = [NSEvent keyEventWithType:NSEventTypeKeyDown location:NSZeroPoint modifierFlags:nFlags
+                                                  timestamp:0 windowNumber:[pWindow windowNumber] context:nil
+                                                 characters:sCharacters charactersIgnoringModifiers:sCharacters
+                                                  isARepeat:NO keyCode:nKeyCode];
+                [pWindow sendEvent:pEvent];
+                fprintf(stderr, "RA_WX_TEST pressed %s+%s in '%s'\n", sModifier, sKey, [[pWindow title] UTF8String]);
+                break;
+            }
+        }
+    }
     else if (pStep.sAction == "list")
     {
         for (NSWindow* pWindow in [NSApp windows])

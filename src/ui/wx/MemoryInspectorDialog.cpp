@@ -262,6 +262,20 @@ wxSizer* MemoryInspectorDialog::CreateResultsControls()
     m_pResults->AppendTextColumn("Description", 2, wxDATAVIEW_CELL_INERT, FromDIP(240));
     m_pResults->SetMinSize(wxSize(-1, m_pResults->GetCharHeight() * VISIBLE_RESULT_ROWS * 3 / 2));
     m_pResults->Bind(wxEVT_DATAVIEW_SELECTION_CHANGED, [this](wxDataViewEvent&) { OnResultsSelectionChanged(); });
+    m_pResults->Bind(wxEVT_CHAR_HOOK, [this](wxKeyEvent& event) {
+        // Ctrl/Cmd+A selects all results, Ctrl/Cmd+D none (like the Win32 list)
+        if (event.ControlDown() && !event.AltDown() && !event.ShiftDown() &&
+            (event.GetKeyCode() == 'A' || event.GetKeyCode() == 'D'))
+        {
+            if (event.GetKeyCode() == 'A')
+                m_pResults->SelectAll();
+            else
+                m_pResults->UnselectAll();
+            OnResultsSelectionChanged();
+            return;
+        }
+        event.Skip();
+    });
     pBox->Add(m_pResults, 1, wxEXPAND | wxALL, 4);
 
     return pBox;

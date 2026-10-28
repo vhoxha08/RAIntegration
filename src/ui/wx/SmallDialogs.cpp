@@ -138,6 +138,7 @@ MemoryRegionsDialog::MemoryRegionsDialog(MemoryRegionsViewModel& vmMemoryRegions
     pRegions->AddColumn(std::move(pRange));
     pRegions->BindIsSelected(Region::IsSelectedProperty);
     pRegions->BindItems(vm.Regions());
+    pRegions->SetPrimaryEditColumn(0); // label
     pRegions->SetMinSize(FromDIP(wxSize(440, 300)));
     pSizer->Add(pRegions, 1, wxEXPAND | wxALL, 8);
 

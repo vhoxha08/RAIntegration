@@ -263,8 +263,12 @@ private:
 
 // ---- grid ------------------------------------------------------------------
 
-Grid::Grid(wxWindow* pParent, long nStyle) : wxDataViewCtrl(pParent, wxID_ANY, wxDefaultPosition, wxDefaultSize, nStyle)
+Grid::Grid(wxWindow* pParent, long nStyle) :
+    wxDataViewCtrl(pParent, wxID_ANY, wxDefaultPosition, wxDefaultSize, nStyle),
+    m_nStyle(nStyle)
 {
+    Bind(wxEVT_CHAR_HOOK, &Grid::OnCharHook, this);
+
     m_pModel = new Model(*this);
     AssociateModel(m_pModel);
     m_pModel->DecRef(); // the control holds the reference
@@ -383,6 +387,66 @@ void Grid::ShowChoiceMenu(gsl::index nIndex, const GridColumn& pColumn)
         pColumn.fSetChoice(*m_pItems, nIndex, nValue);
     else
         m_pItems->SetItemValue(nIndex, *pColumn.pChoiceProperty, nValue);
+}
+
+void Grid::OnCharHook(wxKeyEvent& event)
+{
+    // the Win32 GridBinding's keys (Ctrl on Windows and Linux, Cmd on macOS)
+    const int nKey = event.GetKeyCode();
+    if (event.ControlDown() && !event.AltDown() && !event.ShiftDown())
+    {
+        switch (nKey)
+        {
+            case 'A': // select all
+                if ((m_nStyle & wxDV_MULTIPLE) != 0)
+                {
+                    SelectAll();
+                    OnSelectionChanged(); // programmatic changes don't raise the event
+                }
+                return;
+
+            case 'D': // deselect all
+                UnselectAll();
+                OnSelectionChanged();
+                return;
+
+            case 'C':
+                if (m_fCopy)
+                {
+                    m_fCopy();
+                    return;
+                }
+                break;
+
+            case 'V':
+                if (m_fPaste)
+                {
+                    m_fPaste();
+                    return;
+                }
+                break;
+        }
+    }
+    else if (!event.HasAnyModifiers())
+    {
+        const auto nIndex = GetSelectedIndex();
+        if ((nKey == WXK_RETURN || nKey == WXK_NUMPAD_ENTER) && m_fDoubleClick && nIndex >= 0)
+        {
+            m_fDoubleClick(nIndex);
+            return;
+        }
+
+        if (nKey == WXK_F2 && nIndex >= 0 && m_nPrimaryEditColumn >= 0 &&
+            m_nPrimaryEditColumn < gsl::narrow_cast<int>(m_vColumns.size()) &&
+            !m_vColumns.at(gsl::narrow_cast<size_t>(m_nPrimaryEditColumn)).IsReadOnly())
+        {
+            EditItem(m_pModel->GetItem(gsl::narrow_cast<unsigned int>(nIndex)),
+                     GetColumn(gsl::narrow_cast<unsigned int>(m_nPrimaryEditColumn)));
+            return;
+        }
+    }
+
+    event.Skip();
 }
 
 gsl::index Grid::GetSelectedIndex() const

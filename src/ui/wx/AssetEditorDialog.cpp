@@ -413,6 +413,8 @@ wxSizer* AssetEditorDialog::CreateTrigger()
         }
     });
     m_pConditions->SetContextMenuHandler([this](gsl::index nIndex) { ShowConditionAddressInInspector(nIndex); });
+    m_pConditions->SetCopyHandler([&vmTrigger]() { vmTrigger.CopySelectedConditionsToClipboard(); });
+    m_pConditions->SetPasteHandler([&vmTrigger]() { vmTrigger.PasteFromClipboard(); });
     m_pConditions->SetMinSize(FromDIP(wxSize(760, 220)));
     m_pBinder.BindEnabled(m_pConditions, vm, AssetEditorViewModel::IsAssetLoadedProperty);
     pRequirements->Add(m_pConditions, 1, wxEXPAND);

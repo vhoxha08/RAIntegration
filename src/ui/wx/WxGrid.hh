@@ -114,6 +114,17 @@ public:
     }
 
     /// <summary>
+    /// Ctrl/Cmd+C and Ctrl/Cmd+V (the Win32 GridBinding's copy and paste handlers).
+    /// </summary>
+    void SetCopyHandler(std::function<void()> fHandler) { m_fCopy = std::move(fHandler); }
+    void SetPasteHandler(std::function<void()> fHandler) { m_fPaste = std::move(fHandler); }
+
+    /// <summary>
+    /// The column F2 edits (like the Win32 GridBinding's primary edit column).
+    /// </summary>
+    void SetPrimaryEditColumn(unsigned int nColumn) noexcept { m_nPrimaryEditColumn = static_cast<int>(nColumn); }
+
+    /// <summary>
     /// Called with the item index when the user right clicks (or Ctrl-clicks) an item.
     /// </summary>
     void SetContextMenuHandler(std::function<void(gsl::index)> fHandler) { m_fContextMenu = std::move(fHandler); }
@@ -151,6 +162,7 @@ private:
     void Reset();
     void OnItemActivated(wxDataViewEvent& event);
     void ShowChoiceMenu(gsl::index nIndex, const GridColumn& pColumn);
+    void OnCharHook(wxKeyEvent& event);
     bool ScheduleResetIfNotMainThread();
     void SyncSelectionFromItems();
     void OnSelectionChanged();
@@ -163,6 +175,10 @@ private:
     std::function<void(gsl::index)> m_fDoubleClick;
     std::function<void(const std::vector<gsl::index>&)> m_fSelectionChanged;
     std::function<void(gsl::index)> m_fContextMenu;
+    std::function<void()> m_fCopy;
+    std::function<void()> m_fPaste;
+    int m_nPrimaryEditColumn = -1;
+    long m_nStyle = 0;
     int m_nUpdateDepth = 0;
     bool m_bResetPending = false;
     std::vector<gsl::index> m_vChangedDuringUpdate;

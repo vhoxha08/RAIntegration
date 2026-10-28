@@ -52,6 +52,7 @@ MemoryBookmarksDialog::MemoryBookmarksDialog(MemoryBookmarksViewModel& vmMemoryB
     m_pGrid->BindIsSelected(BookmarkViewModel::IsSelectedProperty);
     m_pGrid->BindRowColor(MemoryWatchViewModel::RowColorProperty);
     m_pGrid->BindItems(vmList.Items());
+    m_pGrid->SetPrimaryEditColumn(0); // description
     m_pGrid->SetMinSize(FromDIP(wxSize(720, 240)));
     pSizer->Add(m_pGrid, 1, wxEXPAND | wxLEFT | wxRIGHT, 8);
 
