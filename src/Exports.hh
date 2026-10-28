@@ -162,6 +162,12 @@ extern "C" {
     // Sound playback. fpPlayFile receives the absolute path of a .wav file.
     API void CCONV _RA_SetAudioHandlers(void (*fpPlayFile)(const char* sUtf8Path), void (*fpBeep)(void));
 
+    // Receives the toolkit's overlay (popups, scoreboards, the in-game overlay) to draw over the game: premultiplied ARGB
+    // pixels (0xAARRGGBB words, rows from top to bottom) the size of the game area in the window passed to RA_Init (at
+    // the display's resolution), or NULL when there's nothing to show. Called on the UI thread whenever the overlay
+    // changes; the pixels are only valid during the call.
+    API void CCONV _RA_SetOverlayImageHandler(void (*fpHandleImage)(const uint32_t* pARGB, int nWidth, int nHeight));
+
     // Shows the platform's file dialog on the UI thread. nMode: 1 = open, 2 = save, 3 = select folder.
     // sFilters is a list of "Description\tspec\n" entries where spec is a comma separated list of extensions
     // ("txt,json"). Writes the chosen UTF-8 path to sResult and returns non-zero, or returns 0 if canceled.

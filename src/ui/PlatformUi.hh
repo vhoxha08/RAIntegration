@@ -39,6 +39,12 @@ public:
     static void SetMainWindow(void* hWnd);
 
     /// <summary>
+    /// Sets the host's function receiving the overlay's image (see _RA_SetOverlayImageHandler). Ignored without a GUI
+    /// backend.
+    /// </summary>
+    static void SetOverlayImageHandler(void (*fpHandleImage)(const uint32_t* pARGB, int nWidth, int nHeight));
+
+    /// <summary>
     /// Sets the host's file dialog function (see _RA_SetFileDialogHandler). Ignored without a GUI backend.
     /// </summary>
     static void SetFileDialogHandler(int (*fpShowFileDialog)(int nMode, const char* sTitle, const char* sFilters,

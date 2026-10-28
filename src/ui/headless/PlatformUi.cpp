@@ -39,6 +39,10 @@ void PlatformUi::SetMainWindow(void*)
 {
 }
 
+void PlatformUi::SetOverlayImageHandler(void (*)(const uint32_t*, int, int))
+{
+}
+
 void PlatformUi::SetFileDialogHandler(int (*)(int, const char*, const char*, const char*, const char*, char*, int))
 {
 }

@@ -749,6 +749,11 @@ API void CCONV _RA_SetAudioHandlers(void (*fpPlayFile)(const char* sUtf8Path), v
         fpBeep ? ra::services::impl::HostAudioSystem::BeepHandler([fpBeep]() { fpBeep(); }) : nullptr);
 }
 
+API void CCONV _RA_SetOverlayImageHandler(void (*fpHandleImage)(const uint32_t*, int, int))
+{
+    ra::ui::PlatformUi::SetOverlayImageHandler(fpHandleImage);
+}
+
 API void CCONV _RA_SetFileDialogHandler(int (*fpShowFileDialog)(int, const char*, const char*, const char*, const char*,
                                                                 char*, int))
 {

@@ -1,7 +1,7 @@
 #include "ui/PlatformUi.hh"
 
 #include "ui/drawing/RecordingSurface.hh"
-#include "ui/wx/OverlayWindow.hh"
+#include "ui/wx/OverlayRenderer.hh"
 #include "ui/wx/WxApp.hh"
 #include "ui/wx/WxDesktop.hh"
 #include "ui/wx/WxImageRepository.hh"
@@ -11,9 +11,9 @@
 namespace ra {
 namespace ui {
 
-// The toolkit's windows are native wxWidgets windows. The overlay (popups, scoreboards, in-game overlay) is drawn
-// in a transparent window over the host's game (OverlayWindow). Surfaces record what is drawn on them for the
-// windows to paint (SurfaceRenderer).
+// The toolkit's windows are native wxWidgets windows. The overlay (popups, scoreboards, in-game overlay) is drawn into
+// an image the host draws over the game (OverlayRenderer). Surfaces record what is drawn on them for the windows to
+// paint (SurfaceRenderer).
 
 static ra::ui::wx::WxDesktop* GetDesktop()
 {
@@ -45,9 +45,14 @@ void PlatformUi::ProcessPendingActions()
 
 void PlatformUi::SetMainWindow(void* hWnd)
 {
-    // only a host that is a wxWidgets application itself passes a window the overlay can be attached to
+    // only a host that is a wxWidgets application itself passes a window the overlay can be sized after
     if (ra::ui::wx::HostOwnsWxApp())
-        ra::ui::wx::OverlayWindow::Attach(static_cast<wxWindow*>(hWnd));
+        ra::ui::wx::OverlayRenderer::Attach(static_cast<wxWindow*>(hWnd));
+}
+
+void PlatformUi::SetOverlayImageHandler(void (*fpHandleImage)(const uint32_t* pARGB, int nWidth, int nHeight))
+{
+    ra::ui::wx::OverlayRenderer::SetImageHandler(fpHandleImage);
 }
 
 void PlatformUi::SetFileDialogHandler(int (*)(int, const char*, const char*, const char*, const char*, char*, int))
@@ -58,7 +63,7 @@ void PlatformUi::SetFileDialogHandler(int (*)(int, const char*, const char*, con
 void PlatformUi::Shutdown()
 {
     // Initialization::Shutdown calls this after the desktop's Shutdown destroyed the windows
-    ra::ui::wx::OverlayWindow::Detach();
+    ra::ui::wx::OverlayRenderer::Detach();
     if (auto* pImageRepository = ra::ui::wx::WxImageRepository::Get())
         pImageRepository->ReleaseImages();
 

@@ -211,7 +211,7 @@ if(NOT WIN32)
       src/ui/wx/MemoryViewerControl.cpp
       src/ui/wx/MemoryWatchColumns.cpp
       src/ui/wx/OverlaySettingsDialog.cpp
-      src/ui/wx/OverlayWindow.cpp
+      src/ui/wx/OverlayRenderer.cpp
       src/ui/wx/PlatformUi.cpp
       src/ui/wx/PointerFinderDialog.cpp
       src/ui/wx/PointerInspectorDialog.cpp
@@ -226,10 +226,6 @@ if(NOT WIN32)
       src/ui/wx/WxGrid.cpp
       src/ui/wx/WxImageRepository.cpp
     )
-    if(APPLE)
-      target_sources(RAIntegrationWx PRIVATE src/ui/wx/OverlayWindowMac.mm)
-      set_source_files_properties(src/ui/wx/OverlayWindowMac.mm PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
-    endif()
     target_link_libraries(RAIntegrationWx PUBLIC RAIntegrationCore wx::core wx::base)
 
     # own precompiled header: wxWidgets adds compile definitions the core's doesn't have
