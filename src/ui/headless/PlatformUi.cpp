@@ -39,7 +39,7 @@ void PlatformUi::SetMainWindow(void*)
 {
 }
 
-void PlatformUi::SetOverlayImageHandler(void (*)(const uint32_t*, int, int))
+void PlatformUi::SetOverlayImageHandler(void (*)(const uint32_t*, int, int, int, int))
 {
 }
 

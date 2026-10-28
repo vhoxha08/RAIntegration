@@ -42,7 +42,8 @@ public:
     /// Sets the host's function receiving the overlay's image (see _RA_SetOverlayImageHandler). Ignored without a GUI
     /// backend.
     /// </summary>
-    static void SetOverlayImageHandler(void (*fpHandleImage)(const uint32_t* pARGB, int nWidth, int nHeight));
+    static void SetOverlayImageHandler(void (*fpHandleImage)(const uint32_t* pARGB, int nX, int nY, int nWidth,
+                                                            int nHeight));
 
     /// <summary>
     /// Sets the host's file dialog function (see _RA_SetFileDialogHandler). Ignored without a GUI backend.

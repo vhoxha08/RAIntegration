@@ -12,6 +12,12 @@
 #include <wx/image.h>
 #include <wx/rawbmp.h>
 
+#ifdef __WXOSX__
+#include <CoreGraphics/CoreGraphics.h>
+#endif
+
+#include <algorithm>
+
 #include <atomic>
 #include <cstring>
 #include <memory>
@@ -129,7 +135,7 @@ void OverlayRenderer::OnHostDestroyed(wxWindowDestroyEvent& event)
 void OverlayRenderer::Clear()
 {
     if (s_fImageHandler)
-        s_fImageHandler(nullptr, 0, 0);
+        s_fImageHandler(nullptr, 0, 0, 0, 0);
 }
 
 void OverlayRenderer::Render()
@@ -141,34 +147,88 @@ void OverlayRenderer::Render()
     if (szClient.GetWidth() <= 0 || szClient.GetHeight() <= 0)
         return;
 
-    // a transparent image at the display's resolution
-    const double fScale = m_pHost->GetDPIScaleFactor();
-    wxImage pImage(std::max(1, static_cast<int>(szClient.GetWidth() * fScale + 0.5)),
-                   std::max(1, static_cast<int>(szClient.GetHeight() * fScale + 0.5)));
-    pImage.InitAlpha();
-    memset(pImage.GetAlpha(), 0, static_cast<size_t>(pImage.GetWidth()) * pImage.GetHeight());
-    wxBitmap pBitmap(pImage, 32, fScale);
-
     // the overlay manager animates the popups as it renders them; it asks for the next render if they move
     ra::ui::drawing::RecordingSurface pSurface(szClient.GetWidth(), szClient.GetHeight(), true);
     auto& pOverlayManager = ra::services::ServiceLocator::GetMutable<ra::ui::viewmodels::OverlayManager>();
     pOverlayManager.Render(pSurface, true);
 
+    // only the part of the game area with something in it is drawn and handed over (popups are small)
+    double fLeft = szClient.GetWidth(), fTop = szClient.GetHeight(), fRight = 0.0, fBottom = 0.0;
+    for (const auto& pOp : pSurface.GetOps())
+    {
+        if (pOp.fAlpha <= 0.0f)
+            continue;
+
+        fLeft = std::min(fLeft, static_cast<double>(std::max(pOp.fX, pOp.fClipLeft)));
+        fTop = std::min(fTop, static_cast<double>(std::max(pOp.fY, pOp.fClipTop)));
+        fRight = std::max(fRight, static_cast<double>(std::min(pOp.fX + pOp.fWidth, pOp.fClipRight)));
+        fBottom = std::max(fBottom, static_cast<double>(std::min(pOp.fY + pOp.fHeight, pOp.fClipBottom)));
+    }
+    if (fRight <= fLeft || fBottom <= fTop)
+    {
+        Clear();
+        return;
+    }
+
+    // in pixels of the display, with a little room for antialiasing
+    const double fScale = m_pHost->GetDPIScaleFactor();
+    const int nCanvasWidth = static_cast<int>(szClient.GetWidth() * fScale + 0.5);
+    const int nCanvasHeight = static_cast<int>(szClient.GetHeight() * fScale + 0.5);
+    const int nX = std::max(0, static_cast<int>(fLeft * fScale) - 2);
+    const int nY = std::max(0, static_cast<int>(fTop * fScale) - 2);
+    const int nWidth = std::min(nCanvasWidth, static_cast<int>(fRight * fScale + 0.5) + 2) - nX;
+    const int nHeight = std::min(nCanvasHeight, static_cast<int>(fBottom * fScale + 0.5) + 2) - nY;
+    if (nWidth <= 0 || nHeight <= 0)
+    {
+        Clear();
+        return;
+    }
+
+    // like the Win32 overlay, a transparent theme draws everything at 90% opacity
+    const bool bTranslucent = ra::services::ServiceLocator::Get<ra::ui::OverlayTheme>().Transparent();
+    const auto fDraw = [this, &pSurface, fScale, bTranslucent](wxGraphicsContext& pContext) {
+        if (bTranslucent)
+            pContext.BeginLayer(0.9);
+        m_pRenderer.Draw(pContext, pSurface.GetOps(), fScale);
+        if (bTranslucent)
+            pContext.EndLayer();
+    };
+
+    m_vPixels.assign(static_cast<size_t>(nWidth) * nHeight, 0);
+
+#ifdef __WXOSX__
+    // drawn straight into the pixels handed to the host: premultiplied 0xAARRGGBB words are what Core Graphics
+    // draws as "premultiplied first, 32 bit little endian"
+    CGColorSpaceRef pColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+    CGContextRef pBitmapContext = CGBitmapContextCreate(m_vPixels.data(), nWidth, nHeight, 8, nWidth * 4, pColorSpace,
+                                                        kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+    CGColorSpaceRelease(pColorSpace);
+    if (pBitmapContext == nullptr)
+        return;
+
+    // in points of the game area, from its top left corner (Core Graphics starts at the bottom left)
+    CGContextTranslateCTM(pBitmapContext, -nX, nHeight + nY);
+    CGContextScaleCTM(pBitmapContext, fScale, -fScale);
+    {
+        std::unique_ptr<wxGraphicsContext> pContext(
+            wxGraphicsRenderer::GetDefaultRenderer()->CreateContextFromNativeContext(pBitmapContext));
+        if (pContext)
+            fDraw(*pContext);
+    }
+    CGContextRelease(pBitmapContext);
+#else
+    // a transparent image of the part, at the display's resolution
+    wxImage pImage(nWidth, nHeight);
+    pImage.InitAlpha();
+    memset(pImage.GetAlpha(), 0, static_cast<size_t>(nWidth) * nHeight);
+    wxBitmap pBitmap(pImage, 32, fScale);
     {
         wxMemoryDC dc(pBitmap);
         std::unique_ptr<wxGraphicsContext> pContext(wxGraphicsContext::Create(dc));
         if (!pContext)
             return;
-
-        // like the Win32 overlay, a transparent theme draws everything at 90% opacity
-        const bool bTranslucent = ra::services::ServiceLocator::Get<ra::ui::OverlayTheme>().Transparent();
-        if (bTranslucent)
-            pContext->BeginLayer(0.9);
-
-        m_pRenderer.Draw(*pContext, pSurface.GetOps(), fScale);
-
-        if (bTranslucent)
-            pContext->EndLayer();
+        pContext->Translate(-nX / fScale, -nY / fScale);
+        fDraw(*pContext);
     }
 
     // the bitmap holds premultiplied pixels
@@ -176,9 +236,6 @@ void OverlayRenderer::Render()
     if (!pData)
         return;
 
-    const int nWidth = pData.GetWidth();
-    const int nHeight = pData.GetHeight();
-    m_vPixels.resize(static_cast<size_t>(nWidth) * nHeight);
     auto* pPixel = m_vPixels.data();
     wxAlphaPixelData::Iterator pRow(pData);
     for (int y = 0; y < nHeight; ++y)
@@ -191,9 +248,10 @@ void OverlayRenderer::Render()
         }
         pRow.OffsetY(pData, 1);
     }
+#endif
 
     if (s_fImageHandler)
-        s_fImageHandler(m_vPixels.data(), nWidth, nHeight);
+        s_fImageHandler(m_vPixels.data(), nX, nY, nWidth, nHeight);
 }
 
 } // namespace wx

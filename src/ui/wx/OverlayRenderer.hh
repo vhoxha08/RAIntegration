@@ -23,11 +23,11 @@ class OverlayRenderer : public wxEvtHandler
 {
 public:
     /// <summary>
-    /// Receives the overlay: premultiplied ARGB pixels (0xAARRGGBB words, rows from top to bottom) at the display's
-    /// resolution, or nullptr when there's nothing to show. Called on the main thread; the pixels are only valid
-    /// during the call.
+    /// Receives the overlay: the part of the game area with something in it, at (nX, nY) from its top left corner, as
+    /// premultiplied ARGB pixels (0xAARRGGBB words, rows from top to bottom); all in pixels of the display. nullptr
+    /// when there's nothing to show. Called on the main thread; the pixels are only valid during the call.
     /// </summary>
-    using ImageHandler = void (*)(const uint32_t* pARGB, int nWidth, int nHeight);
+    using ImageHandler = void (*)(const uint32_t* pARGB, int nX, int nY, int nWidth, int nHeight);
 
     static void SetImageHandler(ImageHandler fHandler) noexcept;
 
