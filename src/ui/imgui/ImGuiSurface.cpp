@@ -383,8 +383,17 @@ void ImGuiSurface::Replay(ImDrawList& pDrawList, float fX, float fY) const
                 if (nTexture == 0)
                     break;
 
-                const ImVec2 pImageMax = pOp.bStretch ? pMax :
-                    ImVec2(pMin.x + static_cast<float>(nImageWidth), pMin.y + static_cast<float>(nImageHeight));
+                // like the Win32 image repository, which resizes larger images (i.e. user pictures) when loading
+                // them, unstretched images that don't fit the requested area are scaled down to it
+                float fImageWidth = static_cast<float>(nImageWidth);
+                float fImageHeight = static_cast<float>(nImageHeight);
+                if (!pOp.bStretch && (fImageWidth > pMax.x - pMin.x || fImageHeight > pMax.y - pMin.y))
+                {
+                    const float fScale = (std::min)((pMax.x - pMin.x) / fImageWidth, (pMax.y - pMin.y) / fImageHeight);
+                    fImageWidth *= fScale;
+                    fImageHeight *= fScale;
+                }
+                const ImVec2 pImageMax = pOp.bStretch ? pMax : ImVec2(pMin.x + fImageWidth, pMin.y + fImageHeight);
                 if (!pOp.bStretch) // unstretched images are cropped to the requested area
                     pDrawList.PushClipRect(pMin, pMax, true);
                 pDrawList.AddImage(static_cast<ImTextureID>(nTexture), pMin, pImageMax, ImVec2(0, 0), ImVec2(1, 1),
