@@ -7,6 +7,7 @@
 #include <wx/checkbox.h>
 #include <wx/dataview.h>
 #include <wx/radiobut.h>
+#include <wx/settings.h>
 #include <wx/sizer.h>
 #include <wx/statbox.h>
 #include <wx/stattext.h>
@@ -67,20 +68,27 @@ public:
         if (pRow == nullptr)
             return false;
 
+        // the toolkit's colors are meant for light lists; keep the text readable in dark mode too
+        wxColour pBackground = wxSystemSettings::GetColour(wxSYS_COLOUR_LISTBOX);
+        wxColour pText = wxSystemSettings::GetColour(wxSYS_COLOUR_LISTBOXTEXT);
         bool bChanged = false;
         const uint32_t nRowColor = pRow->GetRowColor().ARGB;
         if ((nRowColor >> 24) != 0)
         {
-            pAttr.SetBackgroundColour(wxColour((nRowColor >> 16) & 0xFF, (nRowColor >> 8) & 0xFF, nRowColor & 0xFF));
+            pBackground = wxColour((nRowColor >> 16) & 0xFF, (nRowColor >> 8) & 0xFF, nRowColor & 0xFF);
+            pAttr.SetBackgroundColour(pBackground);
             bChanged = true;
         }
 
         const uint32_t nTextColor = pRow->GetDescriptionColor().ARGB;
         if (nColumn == 2 && (nTextColor >> 24) != 0)
         {
-            pAttr.SetColour(wxColour((nTextColor >> 16) & 0xFF, (nTextColor >> 8) & 0xFF, nTextColor & 0xFF));
+            pText = wxColour((nTextColor >> 16) & 0xFF, (nTextColor >> 8) & 0xFF, nTextColor & 0xFF);
             bChanged = true;
         }
+
+        if (bChanged)
+            pAttr.SetColour(ReadableTextColour(pText, pBackground));
 
         return bChanged;
     }

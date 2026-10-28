@@ -1,8 +1,10 @@
 #include "WxGrid.hh"
 
 #include "ui/wx/WxApp.hh"
+#include "ui/wx/WxBinding.hh"
 
 #include <wx/app.h>
+#include <wx/settings.h>
 #include <wx/thread.h>
 
 #include <algorithm>
@@ -218,13 +220,21 @@ public:
             return false;
 
         const auto& vItems = *m_pGrid.m_pItems;
+        auto ToColour = [](uint32_t nColor) {
+            return wxColour((nColor >> 16) & 0xFF, (nColor >> 8) & 0xFF, nColor & 0xFF);
+        };
+
+        // the toolkit's colors are meant for light lists; keep the text readable in dark mode too
+        wxColour pBackground = wxSystemSettings::GetColour(wxSYS_COLOUR_LISTBOX);
+        wxColour pText = wxSystemSettings::GetColour(wxSYS_COLOUR_LISTBOXTEXT);
         bool bChanged = false;
         if (m_pGrid.m_pRowColorProperty)
         {
             const auto nColor = ra::to_unsigned(vItems.GetItemValue(nRow, *m_pGrid.m_pRowColorProperty));
             if ((nColor >> 24) != 0)
             {
-                pAttr.SetBackgroundColour(wxColour((nColor >> 16) & 0xFF, (nColor >> 8) & 0xFF, nColor & 0xFF));
+                pBackground = ToColour(nColor);
+                pAttr.SetBackgroundColour(pBackground);
                 bChanged = true;
             }
         }
@@ -235,10 +245,13 @@ public:
             const auto nColor = ra::to_unsigned(vItems.GetItemValue(nRow, *pColumn.pTextColorProperty));
             if ((nColor >> 24) != 0)
             {
-                pAttr.SetColour(wxColour((nColor >> 16) & 0xFF, (nColor >> 8) & 0xFF, nColor & 0xFF));
+                pText = ToColour(nColor);
                 bChanged = true;
             }
         }
+
+        if (bChanged)
+            pAttr.SetColour(ReadableTextColour(pText, pBackground));
 
         return bChanged;
     }

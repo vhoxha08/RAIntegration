@@ -9,6 +9,7 @@
 #include <wx/window.h>
 
 #include <algorithm>
+#include <cmath>
 
 namespace ra {
 namespace ui {
@@ -187,6 +188,45 @@ void SetTextIfChanged(wxTextEntry& pControl, const std::wstring& sValue)
     const wxString sNewValue = ToWx(sValue);
     if (pControl.GetValue() != sNewValue)
         pControl.ChangeValue(sNewValue); // ChangeValue doesn't raise wxEVT_TEXT
+}
+
+static double RelativeLuminance(const wxColour& pColour)
+{
+    auto Channel = [](unsigned char c) {
+        const double v = c / 255.0;
+        return (v <= 0.03928) ? v / 12.92 : std::pow((v + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * Channel(pColour.Red()) + 0.7152 * Channel(pColour.Green()) + 0.0722 * Channel(pColour.Blue());
+}
+
+static double ContrastRatio(const wxColour& pFirst, const wxColour& pSecond)
+{
+    const double fFirst = RelativeLuminance(pFirst);
+    const double fSecond = RelativeLuminance(pSecond);
+    return (std::max(fFirst, fSecond) + 0.05) / (std::min(fFirst, fSecond) + 0.05);
+}
+
+wxColour ReadableTextColour(const wxColour& pText, const wxColour& pBackground)
+{
+    constexpr double MIN_CONTRAST = 4.5;
+    if (ContrastRatio(pText, pBackground) >= MIN_CONTRAST)
+        return pText;
+
+    // blend towards white on dark backgrounds and towards black on light ones until it's readable
+    const bool bDarkBackground = RelativeLuminance(pBackground) < 0.18;
+    const double fTarget = bDarkBackground ? 255.0 : 0.0;
+    for (int nStep = 1; nStep <= 10; ++nStep)
+    {
+        const double fMix = nStep / 10.0;
+        auto Blend = [fMix, fTarget](unsigned char c) {
+            return static_cast<unsigned char>(c + (fTarget - c) * fMix + 0.5);
+        };
+        const wxColour pCandidate(Blend(pText.Red()), Blend(pText.Green()), Blend(pText.Blue()));
+        if (ContrastRatio(pCandidate, pBackground) >= MIN_CONTRAST)
+            return pCandidate;
+    }
+
+    return bDarkBackground ? *wxWHITE : *wxBLACK;
 }
 
 void SetLabelIfChanged(wxWindow& pControl, const std::wstring& sValue)

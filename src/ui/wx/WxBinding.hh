@@ -7,6 +7,7 @@
 #include "ui/viewmodels/LookupItemViewModel.hh"
 
 #include <wx/choice.h>
+#include <wx/colour.h>
 #include <wx/textentry.h>
 
 #include <functional>
@@ -146,6 +147,13 @@ private:
 /// Sets a text control's value only if it differs (keeps the caret and avoids change events while typing).
 /// </summary>
 void SetTextIfChanged(wxTextEntry& pControl, const std::wstring& sValue);
+
+/// <summary>
+/// The toolkit's colors were chosen for light (Windows) lists. Returns <paramref name="pText" /> adjusted so it is
+/// readable on <paramref name="pBackground" /> (a contrast ratio of at least 4.5): lightened on dark backgrounds,
+/// darkened on light ones, keeping its hue.
+/// </summary>
+wxColour ReadableTextColour(const wxColour& pText, const wxColour& pBackground);
 
 /// <summary>
 /// Sets a label's text only if it differs.
