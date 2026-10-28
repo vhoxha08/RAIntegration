@@ -220,6 +220,7 @@ static MemoryViewerViewModel::TextColor GetColor(ra::data::ByteAddress nAddress,
 
 void MemoryViewerViewModel::UpdateColors()
 {
+    std::lock_guard<std::recursive_mutex> lock(m_mtxBuffers);
     const auto& pGameContext = ra::services::ServiceLocator::Get<ra::data::context::GameContext>();
 
     const auto nVisibleLines = GetNumVisibleLines();
@@ -413,6 +414,7 @@ void MemoryViewerViewModel::SetFirstAddress(ra::data::ByteAddress nValue)
 
 void MemoryViewerViewModel::OnValueChanged(const IntModelProperty::ChangeArgs& args)
 {
+    std::lock_guard<std::recursive_mutex> lock(m_mtxBuffers);
     if (args.Property == AddressProperty)
     {
         auto nFirstAddress = GetFirstAddress();
@@ -712,6 +714,7 @@ uint8_t MemoryViewerViewModel::GetValueAtAddress(ra::data::ByteAddress nAddress)
 
 void MemoryViewerViewModel::IncreaseCurrentValue(uint32_t nModifier)
 {
+    std::lock_guard<std::recursive_mutex> lock(m_mtxBuffers);
     if (m_bReadOnly)
         return;
 
@@ -736,6 +739,7 @@ void MemoryViewerViewModel::IncreaseCurrentValue(uint32_t nModifier)
 
 void MemoryViewerViewModel::DecreaseCurrentValue(uint32_t nModifier)
 {
+    std::lock_guard<std::recursive_mutex> lock(m_mtxBuffers);
     if (m_bReadOnly)
         return;
 
@@ -759,6 +763,7 @@ void MemoryViewerViewModel::DecreaseCurrentValue(uint32_t nModifier)
 
 void MemoryViewerViewModel::OnActiveGameChanged()
 {
+    std::lock_guard<std::recursive_mutex> lock(m_mtxBuffers);
     m_nNeedsRedraw |= REDRAW_ADDRESSES;
 
     UpdateColors();
@@ -766,6 +771,7 @@ void MemoryViewerViewModel::OnActiveGameChanged()
 
 void MemoryViewerViewModel::OnMemoryNoteMoved(ra::data::ByteAddress nOldAddress, ra::data::ByteAddress nNewAddress, const std::wstring& sNote)
 {
+    std::lock_guard<std::recursive_mutex> lock(m_mtxBuffers);
     const auto nFirstAddress = GetFirstAddress();
     const auto nVisibleLines = GetNumVisibleLines();
     const auto nFirstNonVisibleAddress = nFirstAddress + nVisibleLines * 16;
@@ -785,6 +791,7 @@ void MemoryViewerViewModel::OnMemoryNoteMoved(ra::data::ByteAddress nOldAddress,
 
 void MemoryViewerViewModel::OnMemoryNoteChanged(ra::data::ByteAddress nAddress, const std::wstring& sNote)
 {
+    std::lock_guard<std::recursive_mutex> lock(m_mtxBuffers);
     const auto nFirstAddress = GetFirstAddress();
     if (nAddress < nFirstAddress)
         return;
@@ -847,6 +854,7 @@ void MemoryViewerViewModel::OnMemoryNoteChanged(ra::data::ByteAddress nAddress, 
 
 void MemoryViewerViewModel::OnTotalMemorySizeChanged()
 {
+    std::lock_guard<std::recursive_mutex> lock(m_mtxBuffers);
     const auto& pMemoryContext = ra::services::ServiceLocator::Get<ra::context::IEmulatorMemoryContext>();
     const bool bTotalMemorySizeWasZero = (m_nTotalMemorySize == 0);
     m_nTotalMemorySize = gsl::narrow_cast<ra::data::ByteAddress>(pMemoryContext.TotalMemorySize());
@@ -915,6 +923,7 @@ void MemoryViewerViewModel::OnTotalMemorySizeChanged()
 
 void MemoryViewerViewModel::OnByteWritten(ra::data::ByteAddress nAddress, uint8_t nValue)
 {
+    std::lock_guard<std::recursive_mutex> lock(m_mtxBuffers);
     auto nFirstAddress = GetFirstAddress();
     if (nAddress < nFirstAddress)
         return;
@@ -934,6 +943,7 @@ void MemoryViewerViewModel::OnByteWritten(ra::data::ByteAddress nAddress, uint8_
 
 void MemoryViewerViewModel::UpdateColor(ra::data::ByteAddress nAddress)
 {
+    std::lock_guard<std::recursive_mutex> lock(m_mtxBuffers);
     auto nFirstAddress = GetFirstAddress();
     if (nAddress < nFirstAddress)
         return;
@@ -965,6 +975,7 @@ void MemoryViewerViewModel::UpdateColor(ra::data::ByteAddress nAddress)
 
 void MemoryViewerViewModel::OnClick(int nX, int nY)
 {
+    std::lock_guard<std::recursive_mutex> lock(m_mtxBuffers);
     if (m_bAddressFixed)
         return;
 
@@ -1056,6 +1067,7 @@ void MemoryViewerViewModel::DetermineIfASCIIShouldBeVisible()
 
 bool MemoryViewerViewModel::OnChar(char c)
 {
+    std::lock_guard<std::recursive_mutex> lock(m_mtxBuffers);
     if (m_nTotalMemorySize == 0 || m_bReadOnly)
         return false;
 
@@ -1156,6 +1168,7 @@ void MemoryViewerViewModel::OnLostFocus()
 
 void MemoryViewerViewModel::DoFrame()
 {
+    std::lock_guard<std::recursive_mutex> lock(m_mtxBuffers);
     uint8_t pMemory[MaxLines * 16];
     const auto nAddress = GetFirstAddress();
     const auto nVisibleLines = GetNumVisibleLines();
@@ -1287,6 +1300,7 @@ void MemoryViewerViewModel::ResetSurface() noexcept
 
 void MemoryViewerViewModel::UpdateRenderImage()
 {
+    std::lock_guard<std::recursive_mutex> lock(m_mtxBuffers);
     int nNeedsRedraw = m_nNeedsRedraw.exchange(0);
     if (nNeedsRedraw == 0)
         return;

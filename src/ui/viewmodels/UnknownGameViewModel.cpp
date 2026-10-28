@@ -12,6 +12,7 @@
 #include "services/AchievementRuntime.hh"
 #include "services/AchievementRuntimeExports.hh"
 #include "services/IClipboard.hh"
+#include "ui/IDesktop.hh"
 #include "services/ILocalStorage.hh"
 #include "services/ILoginService.hh"
 #include "services/ServiceLocator.hh"
@@ -75,43 +76,56 @@ void UnknownGameViewModel::InitializeGameTitles(ConsoleID consoleId)
     Expects(nResult == RC_OK);
 
     pClient.DispatchRequest(api_request, [this, pAsyncHandle = CreateAsyncHandle()](const rc_api_server_response_t& api_response, void*) {
-        ra::data::AsyncKeepAlive pKeepAlive(*pAsyncHandle);
-        if (pAsyncHandle->IsDestroyed())
-            return;
-
+        // the response is only valid here; the titles are added on the UI thread, which shows them (the request
+        // completes on a worker thread)
         rc_api_fetch_games_list_response_t response;
         const auto nResult = rc_api_process_fetch_games_list_server_response(&response, &api_response);
+        std::vector<std::pair<unsigned, std::wstring>> vTitles;
+        std::wstring sError;
         if (nResult != RC_OK)
         {
-            ra::ui::viewmodels::MessageBoxViewModel::ShowErrorMessage(*this, L"Could not retrieve list of existing games",
-                ra::context::IRcClient::GetErrorMessage(nResult, response.response));
+            sError = ra::context::IRcClient::GetErrorMessage(nResult, response.response);
         }
         else
         {
-            m_vGameTitles.BeginUpdate();
             for (uint32_t i = 0; i < response.num_entries; ++i)
-            {
-                const auto nId = response.entries[i].id;
-                const auto sTitle = ra::util::String::Widen(response.entries[i].name);
-                m_vAllGameTitles.push_back(std::make_pair(nId, sTitle));
-                m_vGameTitles.Add(nId, sTitle);
-            }
-            m_vGameTitles.EndUpdate();
+                vTitles.emplace_back(response.entries[i].id, ra::util::String::Widen(response.entries[i].name));
         }
-
         rc_api_destroy_fetch_games_list_response(&response);
 
-        SetValue(FilterResultsProperty, ra::util::String::Printf(L"%u/%u",
-            gsl::narrow_cast<uint32_t>(m_vAllGameTitles.size()),
-            gsl::narrow_cast<uint32_t>(m_vAllGameTitles.size())));
+        ra::services::ServiceLocator::Get<ra::ui::IDesktop>().InvokeOnUIThread(
+            [this, pAsyncHandle, nResult, vTitles = std::move(vTitles), sError = std::move(sError)]() {
+            ra::data::AsyncKeepAlive pKeepAlive(*pAsyncHandle);
+            if (pAsyncHandle->IsDestroyed())
+                return;
 
-        SetValue(IsAssociateEnabledProperty, true);
-        SetValue(IsSelectedGameEnabledProperty, true);
+            if (nResult != RC_OK)
+            {
+                ra::ui::viewmodels::MessageBoxViewModel::ShowErrorMessage(*this, L"Could not retrieve list of existing games",
+                    sError);
+            }
+            else
+            {
+                m_vGameTitles.BeginUpdate();
+                for (const auto& pTitle : vTitles)
+                {
+                    m_vAllGameTitles.push_back(pTitle);
+                    m_vGameTitles.Add(pTitle.first, pTitle.second);
+                }
+                m_vGameTitles.EndUpdate();
+            }
 
-        const auto nSelectedGameId = GetSelectedGameId();
-        if (nSelectedGameId == 0)
-            CheckForPreviousAssociation();
+            SetValue(FilterResultsProperty, ra::util::String::Printf(L"%u/%u",
+                gsl::narrow_cast<uint32_t>(m_vAllGameTitles.size()),
+                gsl::narrow_cast<uint32_t>(m_vAllGameTitles.size())));
 
+            SetValue(IsAssociateEnabledProperty, true);
+            SetValue(IsSelectedGameEnabledProperty, true);
+
+            const auto nSelectedGameId = GetSelectedGameId();
+            if (nSelectedGameId == 0)
+                CheckForPreviousAssociation();
+        });
     }, nullptr);
 }
 

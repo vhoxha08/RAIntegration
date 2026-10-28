@@ -3,6 +3,7 @@
 #pragma once
 
 #include <atomic>
+#include <mutex>
 #include "context/IEmulatorMemoryContext.hh"
 
 #include "data/context/EmulatorContext.hh"
@@ -215,6 +216,10 @@ protected:
     static constexpr int REDRAW_ADDRESSES = 2;
     static constexpr int REDRAW_HEADERS = 4;
     static constexpr int REDRAW_ALL = REDRAW_MEMORY | REDRAW_ADDRESSES | REDRAW_HEADERS;
+    // the memory and color buffers are updated by the emulator thread (DoFrame, memory changes) and the UI thread
+    // (input), and rendered by the UI thread (UpdateRenderImage)
+    std::recursive_mutex m_mtxBuffers;
+
     // set by the emulator thread (DoFrame, memory changes), handled by the UI thread (UpdateRenderImage)
     std::atomic<int> m_nNeedsRedraw{REDRAW_ALL};
     // the surface is replaced by the UI thread, which may be drawing with it when this is requested
