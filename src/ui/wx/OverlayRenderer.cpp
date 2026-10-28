@@ -134,6 +134,7 @@ void OverlayRenderer::OnHostDestroyed(wxWindowDestroyEvent& event)
 
 void OverlayRenderer::Clear()
 {
+    m_bHasImage = false;
     if (s_fImageHandler)
         s_fImageHandler(nullptr, 0, 0, 0, 0);
 }
@@ -170,8 +171,13 @@ void OverlayRenderer::Render()
         return;
     }
 
-    // in pixels of the display, with a little room for antialiasing
+    // the overlay manager asks again and again while the in-game overlay is shown (it gets the controller's input
+    // every frame), mostly for the same picture: don't draw (and hand over) the same thing again
     const double fScale = m_pHost->GetDPIScaleFactor();
+    const uint64_t nSignature = Signature(pSurface.GetOps(), szClient, fScale);
+    if (m_bHasImage && nSignature == m_nSignature)
+        return;
+
     const int nCanvasWidth = static_cast<int>(szClient.GetWidth() * fScale + 0.5);
     const int nCanvasHeight = static_cast<int>(szClient.GetHeight() * fScale + 0.5);
     const int nX = std::max(0, static_cast<int>(fLeft * fScale) - 2);
@@ -184,13 +190,19 @@ void OverlayRenderer::Render()
         return;
     }
 
-    // like the Win32 overlay, a transparent theme draws everything at 90% opacity
+    // like the Win32 overlay, a transparent theme draws everything at 90% opacity (a layer is slow for a picture the
+    // size of the game area: on macOS, Core Graphics applies the opacity to everything drawn instead)
     const bool bTranslucent = ra::services::ServiceLocator::Get<ra::ui::OverlayTheme>().Transparent();
-    const auto fDraw = [this, &pSurface, fScale, bTranslucent](wxGraphicsContext& pContext) {
-        if (bTranslucent)
+#ifdef __WXOSX__
+    const bool bLayer = false;
+#else
+    const bool bLayer = bTranslucent;
+#endif
+    const auto fDraw = [this, &pSurface, fScale, bLayer](wxGraphicsContext& pContext) {
+        if (bLayer)
             pContext.BeginLayer(0.9);
         m_pRenderer.Draw(pContext, pSurface.GetOps(), fScale);
-        if (bTranslucent)
+        if (bLayer)
             pContext.EndLayer();
     };
 
@@ -209,6 +221,8 @@ void OverlayRenderer::Render()
     // in points of the game area, from its top left corner (Core Graphics starts at the bottom left)
     CGContextTranslateCTM(pBitmapContext, -nX, nHeight + nY);
     CGContextScaleCTM(pBitmapContext, fScale, -fScale);
+    if (bTranslucent)
+        CGContextSetAlpha(pBitmapContext, 0.9);
     {
         std::unique_ptr<wxGraphicsContext> pContext(
             wxGraphicsRenderer::GetDefaultRenderer()->CreateContextFromNativeContext(pBitmapContext));
@@ -250,8 +264,57 @@ void OverlayRenderer::Render()
     }
 #endif
 
+    m_nSignature = nSignature;
+    m_bHasImage = true;
+
     if (s_fImageHandler)
         s_fImageHandler(m_vPixels.data(), nX, nY, nWidth, nHeight);
+}
+
+uint64_t OverlayRenderer::Signature(const std::vector<ra::ui::drawing::RecordingSurface::Op>& vOps, const wxSize& szClient,
+                                    double fScale)
+{
+    // FNV-1a over everything that changes what's drawn
+    uint64_t nHash = 14695981039346656037ULL;
+    const auto fAdd = [&nHash](const void* pData, size_t nSize) {
+        const auto* pBytes = static_cast<const uint8_t*>(pData);
+        for (size_t i = 0; i < nSize; ++i)
+            nHash = (nHash ^ pBytes[i]) * 1099511628211ULL;
+    };
+    const auto fAddValue = [&fAdd](const auto& tValue) { fAdd(&tValue, sizeof(tValue)); };
+
+    fAddValue(szClient.GetWidth());
+    fAddValue(szClient.GetHeight());
+    fAddValue(fScale);
+    for (const auto& pOp : vOps)
+    {
+        fAddValue(pOp.nType);
+        fAddValue(pOp.fX);
+        fAddValue(pOp.fY);
+        fAddValue(pOp.fWidth);
+        fAddValue(pOp.fHeight);
+        fAddValue(pOp.fClipLeft);
+        fAddValue(pOp.fClipTop);
+        fAddValue(pOp.fClipRight);
+        fAddValue(pOp.fClipBottom);
+        fAddValue(pOp.nColor);
+        fAddValue(pOp.fAlpha);
+        fAddValue(pOp.fFontSize);
+        fAddValue(pOp.bBold);
+        fAdd(pOp.sFontFace.data(), pOp.sFontFace.size());
+        fAdd(pOp.sText.data(), pOp.sText.size());
+        fAddValue(pOp.nImageType);
+        fAdd(pOp.sImageName.data(), pOp.sImageName.size());
+        fAddValue(pOp.bStretch);
+        if (pOp.pPixels)
+        {
+            fAddValue(pOp.pPixels->nWidth);
+            fAddValue(pOp.pPixels->nHeight);
+            fAdd(pOp.pPixels->vPixels.data(), pOp.pPixels->vPixels.size() * sizeof(uint32_t));
+        }
+    }
+
+    return nHash;
 }
 
 } // namespace wx

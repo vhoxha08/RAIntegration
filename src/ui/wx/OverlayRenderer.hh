@@ -52,11 +52,17 @@ private:
     void OnHostDestroyed(wxWindowDestroyEvent& event);
 
     static void RequestRender();
+    static uint64_t Signature(const std::vector<ra::ui::drawing::RecordingSurface::Op>& vOps, const wxSize& szClient,
+                              double fScale);
 
     wxWindow* m_pHost;
     bool m_bVisible = false;
     SurfaceRenderer m_pRenderer;
     std::vector<uint32_t> m_vPixels;
+
+    // what the host has (see Signature)
+    bool m_bHasImage = false;
+    uint64_t m_nSignature = 0;
 };
 
 } // namespace wx
