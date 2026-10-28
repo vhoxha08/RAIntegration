@@ -41,6 +41,9 @@
 #include "ui/viewmodels/MessageBoxViewModel.hh"
 #include "ui/viewmodels/OverlayManager.hh"
 #include "ui/viewmodels/WindowManager.hh"
+#ifndef _WIN32
+#include "ui/PlatformUi.hh"
+#endif
 #ifdef _WIN32
 #include "ui/win32/Desktop.hh"
 #include "ui/win32/OverlayWindow.hh"
@@ -98,9 +101,11 @@ API void CCONV _RA_UpdateHWnd(HWND hMainHWND)
     }
 }
 #else
-API void CCONV _RA_UpdateHWnd([[maybe_unused]] HWND hMainHWND)
+API void CCONV _RA_UpdateHWnd(HWND hMainHWND)
 {
-    // the host window is not used outside of Windows; the UI backend draws into the host's own window
+    // the UI backend shows the overlay over the host's window
+    if (!IsExternalRcheevosClient())
+        ra::ui::PlatformUi::SetMainWindow(hMainHWND);
 }
 #endif
 #endif
@@ -701,7 +706,6 @@ API void CCONV _RA_RestoreState(const char* pBuffer)
 
 #include "services/impl/HostAudioSystem.hh"
 #include "services/impl/HostClipboard.hh"
-#include "ui/PlatformUi.hh"
 
 API void CCONV _RA_SetBaseDirectory(const char* sUtf8Path)
 {
@@ -743,42 +747,6 @@ API void CCONV _RA_SetAudioHandlers(void (*fpPlayFile)(const char* sUtf8Path), v
                          [fpPlayFile](const std::string& sPath) { fpPlayFile(sPath.c_str()); })
                    : nullptr,
         fpBeep ? ra::services::impl::HostAudioSystem::BeepHandler([fpBeep]() { fpBeep(); }) : nullptr);
-}
-
-API void CCONV _RA_RenderImGui()
-{
-    ra::ui::PlatformUi::Render();
-}
-
-struct ModalLoopState
-{
-    const std::function<bool()>* fIsOpen;
-};
-
-static int IsModalOpen(void* pData)
-{
-    return (*static_cast<ModalLoopState*>(pData)->fIsOpen)() ? 1 : 0;
-}
-
-API void CCONV _RA_SetModalLoopHandler(void (*fpRunModalLoop)(int (*fpIsOpen)(void*), void* pIsOpenData))
-{
-    if (fpRunModalLoop == nullptr)
-    {
-        ra::ui::PlatformUi::SetModalLoopHandler(nullptr);
-        return;
-    }
-
-    ra::ui::PlatformUi::SetModalLoopHandler([fpRunModalLoop](const std::function<bool()>& fIsOpen) {
-        ModalLoopState pState{&fIsOpen};
-        fpRunModalLoop(IsModalOpen, &pState);
-    });
-}
-
-API void CCONV _RA_SetTextureHandlers(uintptr_t (*fpCreateFromFile)(const char*, int*, int*),
-                                      uintptr_t (*fpCreateFromPixels)(const uint32_t*, int, int),
-                                      void (*fpDestroy)(uintptr_t))
-{
-    ra::ui::PlatformUi::SetTextureHandlers(fpCreateFromFile, fpCreateFromPixels, fpDestroy);
 }
 
 API void CCONV _RA_SetFileDialogHandler(int (*fpShowFileDialog)(int, const char*, const char*, const char*, const char*,

@@ -17,7 +17,7 @@ class ISurfaceFactory;
 }
 
 /// <summary>
-/// Factory hooks implemented by the UI backend linked into a non-Windows build (headless, ImGui, ...).
+/// Factory hooks implemented by the UI backend linked into a non-Windows build (headless, wxWidgets).
 /// The Windows build creates its Win32/GDI services directly in Initialization.cpp.
 /// </summary>
 class PlatformUi
@@ -34,22 +34,9 @@ public:
     static void ProcessPendingActions();
 
     /// <summary>
-    /// Draws the toolkit's windows. Called by the host inside its Dear ImGui frame (no-op without a GUI backend).
+    /// The host's main window (_RA_UpdateHWnd): the overlay is shown over its client area. UI thread only.
     /// </summary>
-    static void Render();
-
-    /// <summary>
-    /// Sets how modal windows block: the handler must keep pumping events and redrawing (calling Render and
-    /// ProcessPendingActions) until fIsOpen returns false. Without a handler modal windows are declined.
-    /// </summary>
-    static void SetModalLoopHandler(std::function<void(const std::function<bool()>& fIsOpen)> fHandler);
-
-    /// <summary>
-    /// Sets the host's texture functions (see ra::ui::imgui::TextureHandlers). Ignored without a GUI backend.
-    /// </summary>
-    static void SetTextureHandlers(uintptr_t (*fpCreateFromFile)(const char* sUtf8Path, int* pWidth, int* pHeight),
-                                   uintptr_t (*fpCreateFromPixels)(const uint32_t* pARGB, int nWidth, int nHeight),
-                                   void (*fpDestroy)(uintptr_t nTexture));
+    static void SetMainWindow(void* hWnd);
 
     /// <summary>
     /// Sets the host's file dialog function (see _RA_SetFileDialogHandler). Ignored without a GUI backend.

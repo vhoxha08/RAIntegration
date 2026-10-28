@@ -1,27 +1,19 @@
 #include "ui/PlatformUi.hh"
 
-#include "ui/imgui/ImGuiImageRepository.hh"
-#include "ui/imgui/ImGuiOverlay.hh"
-#include "ui/imgui/ImGuiSurface.hh"
-#include "ui/imgui/ImGuiTextures.hh"
+#include "ui/drawing/RecordingSurface.hh"
+#include "ui/wx/OverlayWindow.hh"
 #include "ui/wx/WxApp.hh"
 #include "ui/wx/WxDesktop.hh"
+#include "ui/wx/WxImageRepository.hh"
 
 #include "services/ServiceLocator.hh"
 
 namespace ra {
 namespace ui {
 
-// The toolkit's windows are native wxWidgets windows. The overlay (popups, scoreboards, in-game overlay) is
-// still drawn over the game by the host's Dear ImGui frame, so surfaces and images come from the ImGui code.
-
-namespace imgui {
-TextureHandlers& GetTextureHandlers() noexcept
-{
-    static TextureHandlers s_pHandlers;
-    return s_pHandlers;
-}
-} // namespace imgui
+// The toolkit's windows are native wxWidgets windows. The overlay (popups, scoreboards, in-game overlay) is drawn
+// in a transparent window over the host's game (OverlayWindow). Surfaces record what is drawn on them for the
+// windows to paint (SurfaceRenderer).
 
 static ra::ui::wx::WxDesktop* GetDesktop()
 {
@@ -35,12 +27,12 @@ std::unique_ptr<IDesktop> PlatformUi::CreateDesktop() { return std::make_unique<
 
 std::unique_ptr<drawing::ISurfaceFactory> PlatformUi::CreateSurfaceFactory()
 {
-    return std::make_unique<ra::ui::imgui::ImGuiSurfaceFactory>();
+    return std::make_unique<ra::ui::drawing::RecordingSurfaceFactory>();
 }
 
 std::unique_ptr<IImageRepository> PlatformUi::CreateImageRepository()
 {
-    return std::make_unique<ra::ui::imgui::ImGuiImageRepository>();
+    return std::make_unique<ra::ui::wx::WxImageRepository>();
 }
 
 void PlatformUi::ProcessPendingActions()
@@ -51,21 +43,11 @@ void PlatformUi::ProcessPendingActions()
     ra::ui::wx::PumpWxEvents();
 }
 
-void PlatformUi::Render() { ra::ui::imgui::RenderOverlay(); }
-
-void PlatformUi::SetModalLoopHandler(std::function<void(const std::function<bool()>&)>)
+void PlatformUi::SetMainWindow(void* hWnd)
 {
-    // modal windows run the native modal loop
-}
-
-void PlatformUi::SetTextureHandlers(uintptr_t (*fpCreateFromFile)(const char*, int*, int*),
-                                    uintptr_t (*fpCreateFromPixels)(const uint32_t*, int, int),
-                                    void (*fpDestroy)(uintptr_t))
-{
-    auto& pHandlers = ra::ui::imgui::GetTextureHandlers();
-    pHandlers.fpCreateFromFile = fpCreateFromFile;
-    pHandlers.fpCreateFromPixels = fpCreateFromPixels;
-    pHandlers.fpDestroy = fpDestroy;
+    // only a host that is a wxWidgets application itself passes a window the overlay can be attached to
+    if (ra::ui::wx::HostOwnsWxApp())
+        ra::ui::wx::OverlayWindow::Attach(static_cast<wxWindow*>(hWnd));
 }
 
 void PlatformUi::SetFileDialogHandler(int (*)(int, const char*, const char*, const char*, const char*, char*, int))
@@ -76,6 +58,10 @@ void PlatformUi::SetFileDialogHandler(int (*)(int, const char*, const char*, con
 void PlatformUi::Shutdown()
 {
     // Initialization::Shutdown calls this after the desktop's Shutdown destroyed the windows
+    ra::ui::wx::OverlayWindow::Detach();
+    if (auto* pImageRepository = ra::ui::wx::WxImageRepository::Get())
+        pImageRepository->ReleaseImages();
+
     ra::ui::wx::ShutdownWx();
 }
 

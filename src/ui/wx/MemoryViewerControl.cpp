@@ -5,7 +5,7 @@
 #include "services/ServiceLocator.hh"
 
 #include "ui/EditorTheme.hh"
-#include "ui/imgui/ImGuiSurface.hh"
+#include "ui/drawing/RecordingSurface.hh"
 #include "ui/wx/WxApp.hh"
 
 #include <wx/dcbuffer.h>
@@ -24,10 +24,9 @@ namespace wx {
 
 constexpr int MEMVIEW_MARGIN = 4;
 
-static wxColour ToColour(uint32_t nARGB, float fAlpha)
+static wxColour ToColour(uint32_t nARGB)
 {
-    return wxColour((nARGB >> 16) & 0xFF, (nARGB >> 8) & 0xFF, nARGB & 0xFF,
-                    static_cast<unsigned char>(std::clamp(fAlpha, 0.0f, 1.0f) * 255.0f));
+    return wxColour((nARGB >> 16) & 0xFF, (nARGB >> 8) & 0xFF, nARGB & 0xFF);
 }
 
 MemoryViewerControl::MemoryViewerControl(wxWindow* pParent, ra::ui::viewmodels::MemoryViewerViewModel& vmViewer) :
@@ -72,54 +71,10 @@ void MemoryViewerControl::OnRepaintMemoryViewer()
 
 MemoryViewerControl::~MemoryViewerControl() { m_vmViewer.RemoveRepaintNotifyTarget(*this); }
 
-const MemoryViewerControl::TextBitmap& MemoryViewerControl::GetTextBitmap(const std::string& sText, const std::string& sFontFace,
-                                                   float fFontSize, bool bBold, uint32_t nColor)
-{
-    std::string sKey = sFontFace;
-    sKey.append(1, '\x1F').append(std::to_string(static_cast<int>(fFontSize * 4.0f)));
-    sKey.append(1, bBold ? 'B' : 'N').append(std::to_string(nColor)).append(1, '\x1F').append(sText);
-
-    const auto pIter = m_mTextBitmaps.find(sKey);
-    if (pIter != m_mTextBitmaps.end())
-        return pIter->second;
-
-    if (m_mTextBitmaps.size() > 4096)
-        m_mTextBitmaps.clear();
-
-    const wxFont& pFont = GetSurfaceFont(sFontFace, fFontSize, bBold);
-    const wxString sWxText = wxString::FromUTF8(sText);
-    wxCoord nWidth = 0, nHeight = 0;
-    {
-        wxMemoryDC dcMeasure;
-        dcMeasure.SetFont(pFont);
-        dcMeasure.GetTextExtent(sWxText, &nWidth, &nHeight);
-    }
-
-    // a transparent bitmap at the display's resolution with the text on it
-    const double fScale = GetDPIScaleFactor();
-    wxImage pImage(std::max(1, static_cast<int>(nWidth * fScale + 0.5)), std::max(1, static_cast<int>(nHeight * fScale + 0.5)));
-    pImage.InitAlpha();
-    memset(pImage.GetAlpha(), 0, static_cast<size_t>(pImage.GetWidth()) * pImage.GetHeight());
-    wxBitmap pBitmap(pImage, 32, fScale);
-    {
-        wxMemoryDC dc(pBitmap);
-        dc.SetFont(pFont);
-        dc.SetTextForeground(ToColour(nColor, 1.0f));
-        dc.SetBackgroundMode(wxBRUSHSTYLE_TRANSPARENT);
-        dc.DrawText(sWxText, 0, 0);
-    }
-
-    TextBitmap pTextBitmap;
-    pTextBitmap.pBitmap = wxGraphicsRenderer::GetDefaultRenderer()->CreateBitmap(pBitmap);
-    pTextBitmap.fWidth = nWidth;
-    pTextBitmap.fHeight = nHeight;
-    return m_mTextBitmaps.emplace(std::move(sKey), std::move(pTextBitmap)).first->second;
-}
-
 void MemoryViewerControl::UpdateBackingImage()
 {
     m_vmViewer.UpdateRenderImage();
-    const auto* pSurface = dynamic_cast<const ra::ui::imgui::ImGuiSurface*>(&m_vmViewer.GetRenderImage());
+    const auto* pSurface = dynamic_cast<const ra::ui::drawing::RecordingSurface*>(&m_vmViewer.GetRenderImage());
     if (pSurface == nullptr)
         return;
 
@@ -142,65 +97,8 @@ void MemoryViewerControl::UpdateBackingImage()
     std::unique_ptr<wxGraphicsContext> pContext(wxGraphicsContext::Create(dc));
     if (!pContext)
         return;
-    pContext->SetPen(wxNullPen);
-
-    using OpType = ra::ui::imgui::ImGuiSurface::OpType;
-    for (const auto& pOp : vOps)
-    {
-        if (pOp.nSequence <= m_nBackingSequence)
-            continue;
-
-        const int nX = static_cast<int>(pOp.fX);
-        const int nY = static_cast<int>(pOp.fY);
-        const int nWidth = static_cast<int>(pOp.fWidth);
-        const int nHeight = static_cast<int>(pOp.fHeight);
-        const int nClipLeft = static_cast<int>(pOp.fClipLeft);
-        const int nClipTop = static_cast<int>(pOp.fClipTop);
-        const int nClipRight = static_cast<int>(pOp.fClipRight);
-        const int nClipBottom = static_cast<int>(pOp.fClipBottom);
-        if (nClipRight <= nClipLeft || nClipBottom <= nClipTop)
-            continue;
-
-        switch (pOp.nType)
-        {
-            case OpType::Rectangle:
-            {
-                // fills are clipped by intersecting
-                const int nLeft = std::max(nX, nClipLeft);
-                const int nTop = std::max(nY, nClipTop);
-                const int nRight = std::min(nX + nWidth, nClipRight);
-                const int nBottom = std::min(nY + nHeight, nClipBottom);
-                if (nRight > nLeft && nBottom > nTop)
-                {
-                    pContext->SetBrush(wxBrush(ToColour(pOp.nColor, pOp.fAlpha)));
-                    pContext->DrawRectangle(nLeft, nTop, nRight - nLeft, nBottom - nTop);
-                }
-                break;
-            }
-
-            case OpType::Text:
-            {
-                // the view model measured the text with the same font (see GetSurfaceFont); only clip when the
-                // text sticks out of its clip rectangle (a character copied from the font surface)
-                const bool bClip = nX < nClipLeft || nY < nClipTop || nX + nWidth > nClipRight ||
-                                   nY + nHeight > nClipBottom;
-                const auto& pText = GetTextBitmap(pOp.sText, pOp.sFontFace, pOp.fFontSize, pOp.bBold,
-                                                  pOp.nColor | 0xFF000000);
-                if (bClip)
-                {
-                    pContext->PushState();
-                    pContext->Clip(nClipLeft, nClipTop, nClipRight - nClipLeft, nClipBottom - nClipTop);
-                }
-                pContext->DrawBitmap(pText.pBitmap, nX, nY, pText.fWidth, pText.fHeight);
-                if (bClip)
-                    pContext->PopState();
-                break;
-            }
-
-            default: // the memory viewer only draws rectangles and text
-                break;
-        }
-    }
+    m_pRenderer.Draw(*pContext, vOps, GetDPIScaleFactor(), m_nBackingSequence);
+    pContext.reset();
 
     m_nBackingSequence = vOps.back().nSequence;
 
@@ -213,7 +111,7 @@ void MemoryViewerControl::OnPaint(wxPaintEvent&)
     wxAutoBufferedPaintDC dc(this);
 
     const auto& pEditorTheme = ra::services::ServiceLocator::Get<ra::ui::EditorTheme>();
-    dc.SetBackground(wxBrush(ToColour(pEditorTheme.ColorBackground().ARGB, 1.0f)));
+    dc.SetBackground(wxBrush(ToColour(pEditorTheme.ColorBackground().ARGB)));
     dc.Clear();
 
     UpdateBackingImage();

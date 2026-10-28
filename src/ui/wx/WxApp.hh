@@ -19,6 +19,11 @@ namespace wx {
 bool EnsureWxInitialized();
 
 /// <summary>
+/// Whether the host is a wxWidgets application itself (sharing its application object with the toolkit).
+/// </summary>
+bool HostOwnsWxApp();
+
+/// <summary>
 /// Makes the editor colors follow the system's light or dark appearance (unless they come from a file).
 /// </summary>
 /// <returns><c>true</c> if the colors changed.</returns>

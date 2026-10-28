@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ui/viewmodels/MemoryViewerViewModel.hh"
+#include "ui/wx/SurfaceRenderer.hh"
 
 #include <wx/bitmap.h>
 #include <wx/graphics.h>
@@ -48,15 +49,6 @@ private:
     bool HandleShortcut(const wxKeyEvent& event);
 
     void UpdateBackingImage();
-    struct TextBitmap
-    {
-        wxGraphicsBitmap pBitmap;
-        double fWidth = 0.0;
-        double fHeight = 0.0;
-    };
-    const TextBitmap& GetTextBitmap(const std::string& sText, const std::string& sFontFace, float fFontSize,
-                                    bool bBold, uint32_t nColor);
-
     ra::ui::viewmodels::MemoryViewerViewModel& m_vmViewer;
 
     // what has been drawn so far (the view model only repaints what changed, like into a GDI bitmap)
@@ -64,8 +56,7 @@ private:
     const void* m_pBackingSurface = nullptr;
     uint64_t m_nBackingSequence = 0;
 
-    // laying text out is expensive and the viewer draws the same few hundred strings over and over
-    std::unordered_map<std::string, TextBitmap> m_mTextBitmaps;
+    SurfaceRenderer m_pRenderer;
 };
 
 } // namespace wx

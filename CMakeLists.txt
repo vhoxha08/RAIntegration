@@ -176,10 +176,10 @@ if(NOT WIN32)
   target_precompile_headers(RAHeadlessSmoke REUSE_FROM RAIntegrationCore)
   ra_apply_compat(RAHeadlessSmoke)
 
-  # UI backend with native windows (wxWidgets, built statically from the wxWidgets submodule). The overlay is
-  # still drawn by the host's Dear ImGui frame, so this also needs the host's "imgui" target.
+  # UI backend with native windows (wxWidgets, built statically from the wxWidgets submodule), including the
+  # overlay (a transparent window over the host's game)
   option(RA_BUILD_WX_UI "Build the wxWidgets UI backend" OFF)
-  if(RA_BUILD_WX_UI AND TARGET imgui)
+  if(RA_BUILD_WX_UI)
     if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/wxWidgets/CMakeLists.txt)
       message(FATAL_ERROR "wxWidgets submodule missing: git submodule update --init --recursive wxWidgets")
     endif()
@@ -200,9 +200,7 @@ if(NOT WIN32)
     add_library(RAIntegrationWx STATIC
       src/ui/headless/HeadlessDesktop.cpp
       src/ui/headless/HeadlessImageRepository.cpp
-      src/ui/imgui/ImGuiImageRepository.cpp
-      src/ui/imgui/ImGuiOverlay.cpp
-      src/ui/imgui/ImGuiSurface.cpp
+      src/ui/drawing/RecordingSurface.cpp
       src/ui/wx/AssetEditorDialog.cpp
       src/ui/wx/AssetListDialog.cpp
       src/ui/wx/BrokenAchievementsDialog.cpp
@@ -213,19 +211,26 @@ if(NOT WIN32)
       src/ui/wx/MemoryViewerControl.cpp
       src/ui/wx/MemoryWatchColumns.cpp
       src/ui/wx/OverlaySettingsDialog.cpp
+      src/ui/wx/OverlayWindow.cpp
       src/ui/wx/PlatformUi.cpp
       src/ui/wx/PointerFinderDialog.cpp
       src/ui/wx/PointerInspectorDialog.cpp
       src/ui/wx/RichPresenceDialog.cpp
       src/ui/wx/SmallDialogs.cpp
+      src/ui/wx/SurfaceRenderer.cpp
       src/ui/wx/UnknownGameDialog.cpp
       src/ui/wx/WxApp.cpp
       src/ui/wx/WxBinding.cpp
       src/ui/wx/WxDesktop.cpp
       src/ui/wx/WxDialog.cpp
       src/ui/wx/WxGrid.cpp
+      src/ui/wx/WxImageRepository.cpp
     )
-    target_link_libraries(RAIntegrationWx PUBLIC RAIntegrationCore imgui wx::core wx::base)
+    if(APPLE)
+      target_sources(RAIntegrationWx PRIVATE src/ui/wx/OverlayWindowMac.mm)
+      set_source_files_properties(src/ui/wx/OverlayWindowMac.mm PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
+    endif()
+    target_link_libraries(RAIntegrationWx PUBLIC RAIntegrationCore wx::core wx::base)
 
     # own precompiled header: wxWidgets adds compile definitions the core's doesn't have
     target_precompile_headers(RAIntegrationWx PRIVATE src/pch.h)

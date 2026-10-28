@@ -4,7 +4,7 @@
 #include "services/ServiceLocator.hh"
 
 #include "ui/EditorTheme.hh"
-#include "ui/imgui/ImGuiSurface.hh"
+#include "ui/drawing/RecordingSurface.hh"
 
 #include <wx/app.h>
 #include <wx/dcscreen.h>
@@ -45,6 +45,11 @@ WxState s_nState = WxState::NotStarted;
 bool s_bHostOwnsApp = false;
 
 } // namespace
+
+bool HostOwnsWxApp()
+{
+    return EnsureWxInitialized() && s_bHostOwnsApp;
+}
 
 bool ApplySystemAppearance()
 {
@@ -120,7 +125,7 @@ bool EnsureWxInitialized()
     delete wxLog::SetActiveTarget(new wxLogStderr());
 
     // surfaces painted by native windows (i.e. the memory viewer) lay out text with the native fonts
-    ra::ui::imgui::ImGuiSurface::SetTextMeasurer(
+    ra::ui::drawing::RecordingSurface::SetTextMeasurer(
         [](const std::string& sFace, float fSize, bool bBold, const std::wstring& sText) {
             wxScreenDC dc;
             dc.SetFont(GetSurfaceFont(sFace, fSize, bBold));
@@ -147,7 +152,7 @@ void ShutdownWx()
     if (s_nState != WxState::Running)
         return;
 
-    ra::ui::imgui::ImGuiSurface::SetTextMeasurer(nullptr);
+    ra::ui::drawing::RecordingSurface::SetTextMeasurer(nullptr);
     if (!s_bHostOwnsApp)
     {
         wxTheApp->OnExit();

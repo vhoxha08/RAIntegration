@@ -162,19 +162,6 @@ extern "C" {
     // Sound playback. fpPlayFile receives the absolute path of a .wav file.
     API void CCONV _RA_SetAudioHandlers(void (*fpPlayFile)(const char* sUtf8Path), void (*fpBeep)(void));
 
-    // Draws the toolkit's windows. Call inside the host's Dear ImGui frame (when built with the ImGui backend).
-    API void CCONV _RA_RenderImGui();
-
-    // How modal windows block: fpRunModalLoop must keep pumping events and redrawing (calling _RA_RenderImGui and
-    // _RA_ProcessUIThreadActions) until fpIsOpen(pIsOpenData) returns 0.
-    API void CCONV _RA_SetModalLoopHandler(void (*fpRunModalLoop)(int (*fpIsOpen)(void*), void* pIsOpenData));
-
-    // Textures for the toolkit's images (badges, overlay). Called on the UI thread with the host's rendering
-    // context current; a texture is the ImTextureID of the host's ImGui renderer (0 = failure). Pixels are ARGB.
-    API void CCONV _RA_SetTextureHandlers(uintptr_t (*fpCreateFromFile)(const char* sUtf8Path, int* pWidth, int* pHeight),
-                                          uintptr_t (*fpCreateFromPixels)(const uint32_t* pARGB, int nWidth, int nHeight),
-                                          void (*fpDestroy)(uintptr_t nTexture));
-
     // Shows the platform's file dialog on the UI thread. nMode: 1 = open, 2 = save, 3 = select folder.
     // sFilters is a list of "Description\tspec\n" entries where spec is a comma separated list of extensions
     // ("txt,json"). Writes the chosen UTF-8 path to sResult and returns non-zero, or returns 0 if canceled.

@@ -1,5 +1,5 @@
-#ifndef RA_UI_IMGUI_SURFACE_HH
-#define RA_UI_IMGUI_SURFACE_HH
+#ifndef RA_UI_DRAWING_RECORDING_SURFACE_HH
+#define RA_UI_DRAWING_RECORDING_SURFACE_HH
 #pragma once
 
 #include "ui/drawing/ISurface.hh"
@@ -9,24 +9,23 @@
 #include <string>
 #include <vector>
 
-struct ImDrawList;
-
 namespace ra {
 namespace ui {
-namespace imgui {
+namespace drawing {
 
 /// <summary>
-/// ISurface that records what is drawn on it and replays it into a Dear ImGui draw list.
+/// ISurface that records what is drawn on it, for a renderer to draw (i.e. a native window, see
+/// ra::ui::wx::SurfaceRenderer).
 /// </summary>
 /// <remarks>
 /// The toolkit renders popups into their own surfaces and then copies those onto the overlay surface
 /// (DrawSurface), possibly faded (SetOpacity). Copying a recording surface copies its commands, translated and
 /// clipped, so the final surface holds everything needed to draw a frame.
 /// </remarks>
-class ImGuiSurface : public ra::ui::drawing::ISurface
+class RecordingSurface : public ISurface
 {
 public:
-    ImGuiSurface(int nWidth, int nHeight, bool bTransparent) noexcept;
+    RecordingSurface(int nWidth, int nHeight, bool bTransparent) noexcept;
 
     unsigned int GetWidth() const noexcept override { return m_nWidth; }
     unsigned int GetHeight() const noexcept override { return m_nHeight; }
@@ -43,11 +42,19 @@ public:
     void SetPixels(int nX, int nY, int nWidth, int nHeight, uint32_t* pARGB) override;
 
     /// <summary>
-    /// Draws the recorded commands with the surface's upper left corner at (fX, fY). UI thread only.
+    /// The pixels of a SetPixels command (ARGB).
     /// </summary>
-    void Replay(ImDrawList& pDrawList, float fX, float fY) const;
+    struct PixelImage
+    {
+        std::vector<uint32_t> vPixels;
+        int nWidth = 0;
+        int nHeight = 0;
 
-    struct PixelImage;
+        /// <summary>
+        /// For the renderer to keep what it made of the pixels (i.e. a bitmap), released with them.
+        /// </summary>
+        mutable std::shared_ptr<void> pRendered;
+    };
 
     enum class OpType
     {
@@ -80,7 +87,7 @@ public:
     };
 
     /// <summary>
-    /// The recorded drawing commands, in order (for drawing the surface with something other than ImGui). Commands
+    /// The recorded drawing commands, in order. Commands
     /// hidden by later opaque fills are dropped; a renderer that keeps its own image can draw just the commands
     /// with a higher nSequence than the last one it drew.
     /// </summary>
@@ -93,8 +100,8 @@ public:
     void DiscardOps(uint64_t nSequence) const;
 
     /// <summary>
-    /// Measures text for surfaces that are not drawn by ImGui (i.e. by native windows). Used on the UI thread
-    /// outside of ImGui frames; elsewhere the size is estimated.
+    /// Measures text with the fonts the renderer draws with. Used on the UI thread (which draws the surfaces);
+    /// elsewhere the size is estimated.
     /// </summary>
     using TextMeasurer = std::function<ra::ui::Size(const std::string& sFace, float fSize, bool bBold,
                                                     const std::wstring& sText)>;
@@ -122,24 +129,24 @@ private:
     static Font GetFont(int nFont);
 };
 
-class ImGuiSurfaceFactory : public ra::ui::drawing::ISurfaceFactory
+class RecordingSurfaceFactory : public ISurfaceFactory
 {
 public:
-    std::unique_ptr<ra::ui::drawing::ISurface> CreateSurface(int nWidth, int nHeight) const override
+    std::unique_ptr<ISurface> CreateSurface(int nWidth, int nHeight) const override
     {
-        return std::make_unique<ImGuiSurface>(nWidth, nHeight, false);
+        return std::make_unique<RecordingSurface>(nWidth, nHeight, false);
     }
 
-    std::unique_ptr<ra::ui::drawing::ISurface> CreateTransparentSurface(int nWidth, int nHeight) const override
+    std::unique_ptr<ISurface> CreateTransparentSurface(int nWidth, int nHeight) const override
     {
-        return std::make_unique<ImGuiSurface>(nWidth, nHeight, true);
+        return std::make_unique<RecordingSurface>(nWidth, nHeight, true);
     }
 
-    bool SaveImage(const ra::ui::drawing::ISurface& pSurface, const std::wstring& sPath) const override;
+    bool SaveImage(const ISurface& pSurface, const std::wstring& sPath) const override;
 };
 
-} // namespace imgui
+} // namespace drawing
 } // namespace ui
 } // namespace ra
 
-#endif // !RA_UI_IMGUI_SURFACE_HH
+#endif // !RA_UI_DRAWING_RECORDING_SURFACE_HH

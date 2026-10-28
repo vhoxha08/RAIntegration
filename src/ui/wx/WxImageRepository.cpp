@@ -1,4 +1,4 @@
-#include "ImGuiImageRepository.hh"
+#include "WxImageRepository.hh"
 
 #include "context/IRcClient.hh"
 
@@ -7,8 +7,7 @@
 #include "services/IFileSystem.hh"
 #include "services/ServiceLocator.hh"
 
-#include "ui/imgui/ImGuiOverlay.hh"
-#include "ui/imgui/ImGuiTextures.hh"
+#include "ui/IDesktop.hh"
 
 #include "util/Log.hh"
 #include "util/Strings.hh"
@@ -17,46 +16,26 @@
 
 #include <algorithm>
 
+#include <wx/image.h>
+
 namespace ra {
 namespace ui {
-namespace imgui {
+namespace wx {
 
 static std::string GetKey(ImageType nType, const std::string& sName)
 {
     return std::to_string(static_cast<int>(nType)) + ':' + sName;
 }
 
-ImGuiImageRepository* ImGuiImageRepository::Get()
+WxImageRepository* WxImageRepository::Get()
 {
     if (!ra::services::ServiceLocator::Exists<IImageRepository>())
         return nullptr;
 
-    return dynamic_cast<ImGuiImageRepository*>(&ra::services::ServiceLocator::GetMutable<IImageRepository>());
+    return dynamic_cast<WxImageRepository*>(&ra::services::ServiceLocator::GetMutable<IImageRepository>());
 }
 
-ImGuiImageRepository::~ImGuiImageRepository() noexcept
-{
-    // the textures belong to the host's rendering context; only release them if we're on its thread
-    if (IsOnRenderThread() && GetTextureHandlers().fpDestroy != nullptr)
-    {
-        for (const auto& pPair : m_mTextures)
-        {
-            if (pPair.second.nTexture != 0)
-                GetTextureHandlers().fpDestroy(pPair.second.nTexture);
-        }
-    }
-}
-
-void ImGuiImageRepository::DestroyTexture(uintptr_t nTexture)
-{
-    const auto fpDestroy = GetTextureHandlers().fpDestroy;
-    if (nTexture == 0 || fpDestroy == nullptr)
-        return;
-
-    RunOnRenderThread([fpDestroy, nTexture]() { fpDestroy(nTexture); });
-}
-
-bool ImGuiImageRepository::IsImageAvailable(ImageType nType, const std::string& sName) const
+bool WxImageRepository::IsImageAvailable(ImageType nType, const std::string& sName) const
 {
     if (sName.empty())
         return false;
@@ -73,7 +52,7 @@ bool ImGuiImageRepository::IsImageAvailable(ImageType nType, const std::string& 
 }
 
 // same as ra::ui::drawing::gdi::ImageRepository::FetchImage
-void ImGuiImageRepository::FetchImage(ImageType nType, const std::string& sName, const std::string& sSourceUrl, time_t tLastUpdated)
+void WxImageRepository::FetchImage(ImageType nType, const std::string& sName, const std::string& sSourceUrl, time_t tLastUpdated)
 {
     if (sName.empty() || nType == ImageType::Local)
         return;
@@ -156,23 +135,16 @@ void ImGuiImageRepository::FetchImage(ImageType nType, const std::string& sName,
     });
 }
 
-void ImGuiImageRepository::OnImageDownloaded(ImageType nType, const std::string& sName)
+void WxImageRepository::OnImageDownloaded(ImageType nType, const std::string& sName)
 {
-    // drop a texture made from an older copy of the file (on the render thread, which owns the textures)
+    // drop an image loaded from an older copy of the file (on the UI thread, which uses the images)
     const std::string sKey = GetKey(nType, sName);
-    RunOnRenderThread([this, sKey]() {
-        const auto pIter = m_mTextures.find(sKey);
-        if (pIter != m_mTextures.end())
-        {
-            DestroyTexture(pIter->second.nTexture);
-            m_mTextures.erase(pIter);
-        }
-    });
+    ra::services::ServiceLocator::Get<ra::ui::IDesktop>().InvokeOnUIThread([this, sKey]() { m_mImages.erase(sKey); });
 
     OnImageChanged(nType, sName);
 }
 
-bool ImGuiImageRepository::HasReferencedImageChanged(ImageReference& pImage) const
+bool WxImageRepository::HasReferencedImageChanged(ImageReference& pImage) const
 {
     // the reference's data is 1 once the image has been available; report the change once
     if (pImage.Type() == ImageType::None || pImage.GetData() != 0)
@@ -185,44 +157,47 @@ bool ImGuiImageRepository::HasReferencedImageChanged(ImageReference& pImage) con
     return true;
 }
 
-uintptr_t ImGuiImageRepository::GetTexture(ImageType nType, const std::string& sName, int* pWidth, int* pHeight)
+const WxImageRepository::Image* WxImageRepository::GetImage(ImageType nType, const std::string& sName)
 {
     if (sName.empty())
-        return 0;
+        return nullptr;
 
     const std::string sKey = GetKey(nType, sName);
-    const auto pIter = m_mTextures.find(sKey);
-    if (pIter != m_mTextures.end())
-    {
-        *pWidth = pIter->second.nWidth;
-        *pHeight = pIter->second.nHeight;
-        return pIter->second.nTexture;
-    }
+    const auto pIter = m_mImages.find(sKey);
+    if (pIter != m_mImages.end())
+        return pIter->second.pBitmap.IsNull() ? nullptr : &pIter->second;
 
     if (!IsImageAvailable(nType, sName))
     {
         FetchImage(nType, sName, "");
-        return 0;
+        return nullptr;
     }
 
-    const auto fpCreate = GetTextureHandlers().fpCreateFromFile;
-    if (fpCreate == nullptr)
-        return 0;
+    // remember failures too, so a broken file isn't decoded every time it's drawn
+    Image pImage;
+    std::wstring sPath = GetFilename(nType, sName);
+    std::replace(sPath.begin(), sPath.end(), L'\\', L'/'); // paths are built with '\\' separators
+    wxImage pFile;
+    if (pFile.LoadFile(wxString(sPath)) && pFile.IsOk())
+    {
+        pImage.nWidth = pFile.GetWidth();
+        pImage.nHeight = pFile.GetHeight();
+        pImage.pBitmap = wxGraphicsRenderer::GetDefaultRenderer()->CreateBitmapFromImage(pFile);
+    }
+    else
+    {
+        RA_LOG_WARN("Could not load image %s", ra::util::String::Narrow(sPath).c_str());
+    }
 
-    // remember failures too, so a broken file isn't decoded every frame
-    Texture pTexture;
-    std::string sPath = ra::util::String::Narrow(GetFilename(nType, sName));
-    std::replace(sPath.begin(), sPath.end(), '\\', '/'); // paths are built with '\\' separators
-    pTexture.nTexture = fpCreate(sPath.c_str(), &pTexture.nWidth, &pTexture.nHeight);
-    if (pTexture.nTexture == 0)
-        RA_LOG_WARN("Could not load image %s", sPath.c_str());
-
-    m_mTextures.emplace(sKey, pTexture);
-    *pWidth = pTexture.nWidth;
-    *pHeight = pTexture.nHeight;
-    return pTexture.nTexture;
+    const auto& pStored = m_mImages.emplace(sKey, std::move(pImage)).first->second;
+    return pStored.pBitmap.IsNull() ? nullptr : &pStored;
 }
 
-} // namespace imgui
+void WxImageRepository::ReleaseImages() noexcept
+{
+    m_mImages.clear();
+}
+
+} // namespace wx
 } // namespace ui
 } // namespace ra

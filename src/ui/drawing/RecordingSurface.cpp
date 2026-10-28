@@ -1,17 +1,11 @@
-#include "ImGuiSurface.hh"
+#include "RecordingSurface.hh"
 
 #include "ui/IDesktop.hh"
-#include "ui/imgui/ImGuiImageRepository.hh"
-#include "ui/imgui/ImGuiOverlay.hh"
-#include "ui/imgui/ImGuiTextures.hh"
 
 #include "services/ServiceLocator.hh"
 
 #include "util/Log.hh"
 #include "util/Strings.hh"
-
-#include <imgui.h>
-#include <imgui_internal.h>
 
 #include <algorithm>
 #include <atomic>
@@ -21,7 +15,7 @@
 
 namespace ra {
 namespace ui {
-namespace imgui {
+namespace drawing {
 
 // Shared by all surfaces: a renderer keeping what it drew from a surface (by the last sequence it drew) must not
 // mistake a new surface, which may reuse the old one's address, for the old one.
@@ -32,20 +26,9 @@ static uint64_t NextSequence() noexcept
 }
 
 
-static bool CanUseImGui()
-{
-    // ImGui is not thread safe; only measure text with it on the render thread, and only while the host is building
-    // a frame (surfaces may also be measured by other UI code, i.e. native windows painting outside of a frame)
-    // (the thread first: another thread mustn't even look at ImGui's state while the render thread changes it)
-    if (!IsOnRenderThread())
-        return false;
-
-    return ImGui::GetCurrentContext() != nullptr && ImGui::GetCurrentContext()->WithinFrameScope;
-}
-
-// Text as UTF-8 for ImGui. U+2BC7/U+2BC8 (the overlay's page arrows) are missing from the fonts on many systems
-// (macOS has none), so use the older, near identical triangles U+25C0/U+25B6 instead.
-static std::string ToDisplayText(const std::wstring& sText)
+// Text as UTF-8. U+2BC7/U+2BC8 (the overlay's page arrows) are missing from the fonts on many systems (macOS has
+// none), so use the older, near identical triangles U+25C0/U+25B6 instead.
+static std::wstring ToDisplayTextW(const std::wstring& sText)
 {
     std::wstring sDisplay = sText;
     for (auto& c : sDisplay)
@@ -56,37 +39,22 @@ static std::string ToDisplayText(const std::wstring& sText)
             c = 0x25B6;
     }
 
-    return ra::util::String::Narrow(sDisplay);
+    return sDisplay;
 }
 
-struct ImGuiSurface::PixelImage
+static std::string ToDisplayText(const std::wstring& sText)
 {
-    std::vector<uint32_t> vPixels;
-    int nWidth = 0;
-    int nHeight = 0;
-    mutable uintptr_t nTexture = 0;
+    return ra::util::String::Narrow(ToDisplayTextW(sText));
+}
 
-    PixelImage() noexcept = default;
-    PixelImage(const PixelImage&) = delete;
-    PixelImage& operator=(const PixelImage&) = delete;
-    PixelImage(PixelImage&&) = delete;
-    PixelImage& operator=(PixelImage&&) = delete;
-
-    ~PixelImage() noexcept
-    {
-        if (nTexture != 0)
-            ImGuiImageRepository::DestroyTexture(nTexture);
-    }
-};
-
-ImGuiSurface::ImGuiSurface(int nWidth, int nHeight, bool bTransparent) noexcept :
+RecordingSurface::RecordingSurface(int nWidth, int nHeight, bool bTransparent) noexcept :
     m_nWidth(std::max(nWidth, 0)),
     m_nHeight(std::max(nHeight, 0)),
     m_bTransparent(bTransparent)
 {
 }
 
-ImGuiSurface::Op& ImGuiSurface::AddOp(OpType nType, int nX, int nY, int nWidth, int nHeight)
+RecordingSurface::Op& RecordingSurface::AddOp(OpType nType, int nX, int nY, int nWidth, int nHeight)
 {
     Op& pOp = m_vOps.emplace_back();
     pOp.nSequence = NextSequence();
@@ -102,7 +70,7 @@ ImGuiSurface::Op& ImGuiSurface::AddOp(OpType nType, int nX, int nY, int nWidth, 
     return pOp;
 }
 
-void ImGuiSurface::AddOp(Op&& pOp)
+void RecordingSurface::AddOp(Op&& pOp)
 {
     if (pOp.nType == OpType::Rectangle && pOp.fAlpha >= 1.0f && (pOp.nColor >> 24) == 0xFF)
         RemoveCoveredOps(pOp);
@@ -111,7 +79,7 @@ void ImGuiSurface::AddOp(Op&& pOp)
     m_vOps.push_back(std::move(pOp));
 }
 
-void ImGuiSurface::DiscardOps(uint64_t nSequence) const
+void RecordingSurface::DiscardOps(uint64_t nSequence) const
 {
     if (m_vOps.empty() || m_vOps.front().nSequence > nSequence)
         return;
@@ -127,7 +95,7 @@ void ImGuiSurface::DiscardOps(uint64_t nSequence) const
     m_vOps.erase(m_vOps.begin(), pFirstKept);
 }
 
-void ImGuiSurface::RemoveCoveredOps(const Op& pOpaqueOp)
+void RecordingSurface::RemoveCoveredOps(const Op& pOpaqueOp)
 {
     // Views like the memory viewer draw once and then only repaint what changed, each repaint starting with an
     // opaque background. Drop what such a fill hides so the recording doesn't grow with every repaint.
@@ -150,13 +118,13 @@ void ImGuiSurface::RemoveCoveredOps(const Op& pOpaqueOp)
                  m_vOps.end());
 }
 
-float ImGuiSurface::GetAlpha(Color nColor) const noexcept
+float RecordingSurface::GetAlpha(Color nColor) const noexcept
 {
     // like GDI, only surfaces created as transparent honor the alpha channel
     return m_bTransparent ? nColor.Channel.A / 255.0f : 1.0f;
 }
 
-void ImGuiSurface::FillRectangle(int nX, int nY, int nWidth, int nHeight, Color nColor)
+void RecordingSurface::FillRectangle(int nX, int nY, int nWidth, int nHeight, Color nColor)
 {
     if (nColor.ARGB == Color::Transparent.ARGB)
     {
@@ -184,16 +152,15 @@ void ImGuiSurface::FillRectangle(int nX, int nY, int nWidth, int nHeight, Color 
     AddOp(std::move(pOp));
 }
 
-static ImGuiSurface::TextMeasurer s_fTextMeasurer;
+static RecordingSurface::TextMeasurer s_fTextMeasurer;
 
-void ImGuiSurface::SetTextMeasurer(TextMeasurer fMeasurer) { s_fTextMeasurer = std::move(fMeasurer); }
+void RecordingSurface::SetTextMeasurer(TextMeasurer fMeasurer) { s_fTextMeasurer = std::move(fMeasurer); }
 
 static std::mutex s_pFontsMutex;
-static std::vector<ImGuiSurface::Font> s_vFonts;
+static std::vector<RecordingSurface::Font> s_vFonts;
 
-int ImGuiSurface::LoadFont(const std::string& sFont, int nFontSize, FontStyles nStyle)
+int RecordingSurface::LoadFont(const std::string& sFont, int nFontSize, FontStyles nStyle)
 {
-    // ImGui draws everything with its own font at the requested size; the face is kept for other renderers
     const bool bBold = (static_cast<int>(nStyle) & static_cast<int>(FontStyles::Bold)) != 0;
 
     std::lock_guard<std::mutex> lock(s_pFontsMutex);
@@ -208,7 +175,7 @@ int ImGuiSurface::LoadFont(const std::string& sFont, int nFontSize, FontStyles n
     return gsl::narrow_cast<int>(s_vFonts.size());
 }
 
-ImGuiSurface::Font ImGuiSurface::GetFont(int nFont)
+RecordingSurface::Font RecordingSurface::GetFont(int nFont)
 {
     std::lock_guard<std::mutex> lock(s_pFontsMutex);
     if (nFont > 0 && nFont <= gsl::narrow_cast<int>(s_vFonts.size()))
@@ -217,27 +184,19 @@ ImGuiSurface::Font ImGuiSurface::GetFont(int nFont)
     return {};
 }
 
-ra::ui::Size ImGuiSurface::MeasureText(int nFont, const std::wstring& sText) const
+ra::ui::Size RecordingSurface::MeasureText(int nFont, const std::wstring& sText) const
 {
     const Font pFont = GetFont(nFont);
     const float fSize = pFont.fSize;
     const bool bBold = pFont.bBold;
 
-    float fWidth = 0.0f;
-    if (CanUseImGui())
+    if (s_fTextMeasurer && ra::services::ServiceLocator::Exists<ra::ui::IDesktop>() &&
+        ra::services::ServiceLocator::Get<ra::ui::IDesktop>().IsOnUIThread())
     {
-        const std::string sUtf8 = ToDisplayText(sText);
-        fWidth = ImGui::GetFont()->CalcTextSizeA(fSize, FLT_MAX, 0.0f, sUtf8.c_str()).x;
+        return s_fTextMeasurer(pFont.sFace, fSize, bBold, ToDisplayTextW(sText));
     }
-    else if (s_fTextMeasurer && ra::services::ServiceLocator::Exists<ra::ui::IDesktop>() &&
-             ra::services::ServiceLocator::Get<ra::ui::IDesktop>().IsOnUIThread())
-    {
-        return s_fTextMeasurer(pFont.sFace, fSize, bBold, sText);
-    }
-    else
-    {
-        fWidth = sText.length() * fSize * 0.55f; // estimate
-    }
+
+    float fWidth = sText.length() * fSize * 0.55f; // estimate
 
     if (bBold)
         fWidth += 1.0f;
@@ -245,7 +204,7 @@ ra::ui::Size ImGuiSurface::MeasureText(int nFont, const std::wstring& sText) con
     return {static_cast<int>(std::ceil(fWidth)), static_cast<int>(std::ceil(fSize))};
 }
 
-void ImGuiSurface::WriteText(int nX, int nY, int nFont, Color nColor, const std::wstring& sText)
+void RecordingSurface::WriteText(int nX, int nY, int nFont, Color nColor, const std::wstring& sText)
 {
     if (sText.empty())
         return;
@@ -261,7 +220,7 @@ void ImGuiSurface::WriteText(int nX, int nY, int nFont, Color nColor, const std:
     pOp.sText = ToDisplayText(sText);
 }
 
-void ImGuiSurface::DrawImage(int nX, int nY, int nWidth, int nHeight, const ImageReference& pImage)
+void RecordingSurface::DrawImage(int nX, int nY, int nWidth, int nHeight, const ImageReference& pImage)
 {
     if (pImage.Type() == ImageType::None)
         return;
@@ -272,7 +231,7 @@ void ImGuiSurface::DrawImage(int nX, int nY, int nWidth, int nHeight, const Imag
     pOp.bStretch = false;
 }
 
-void ImGuiSurface::DrawImageStretched(int nX, int nY, int nWidth, int nHeight, const ImageReference& pImage)
+void RecordingSurface::DrawImageStretched(int nX, int nY, int nWidth, int nHeight, const ImageReference& pImage)
 {
     if (pImage.Type() == ImageType::None)
         return;
@@ -283,16 +242,16 @@ void ImGuiSurface::DrawImageStretched(int nX, int nY, int nWidth, int nHeight, c
     pOp.bStretch = true;
 }
 
-void ImGuiSurface::DrawSurface(int nX, int nY, const ISurface& pSurface)
+void RecordingSurface::DrawSurface(int nX, int nY, const ISurface& pSurface)
 {
     DrawSurface(nX, nY, pSurface, 0, 0, gsl::narrow_cast<int>(pSurface.GetWidth()),
                 gsl::narrow_cast<int>(pSurface.GetHeight()));
 }
 
-void ImGuiSurface::DrawSurface(int nX, int nY, const ISurface& pSurface, int nSurfaceX, int nSurfaceY, int nWidth,
+void RecordingSurface::DrawSurface(int nX, int nY, const ISurface& pSurface, int nSurfaceX, int nSurfaceY, int nWidth,
                                int nHeight)
 {
-    const auto* pSource = dynamic_cast<const ImGuiSurface*>(&pSurface);
+    const auto* pSource = dynamic_cast<const RecordingSurface*>(&pSurface);
     if (pSource == nullptr || pSource == this)
         return;
 
@@ -327,7 +286,7 @@ void ImGuiSurface::DrawSurface(int nX, int nY, const ISurface& pSurface, int nSu
     }
 }
 
-void ImGuiSurface::SetOpacity(double fAlpha)
+void RecordingSurface::SetOpacity(double fAlpha)
 {
     // sets the alpha of everything drawn so far (not cumulative), like the GDI implementation
     const float fNewAlpha = static_cast<float>(std::clamp(fAlpha, 0.0, 1.0));
@@ -335,7 +294,7 @@ void ImGuiSurface::SetOpacity(double fAlpha)
         pOp.fAlpha = fNewAlpha;
 }
 
-void ImGuiSurface::SetPixels(int nX, int nY, int nWidth, int nHeight, uint32_t* pARGB)
+void RecordingSurface::SetPixels(int nX, int nY, int nWidth, int nHeight, uint32_t* pARGB)
 {
     if (pARGB == nullptr || nWidth <= 0 || nHeight <= 0)
         return;
@@ -349,95 +308,12 @@ void ImGuiSurface::SetPixels(int nX, int nY, int nWidth, int nHeight, uint32_t* 
     pOp.pPixels = std::move(pPixels);
 }
 
-static ImU32 ToImColor(uint32_t nARGB, float fAlpha)
+bool RecordingSurfaceFactory::SaveImage([[maybe_unused]] const ISurface& pSurface, const std::wstring& sPath) const
 {
-    const unsigned nAlpha = static_cast<unsigned>(std::clamp(fAlpha, 0.0f, 1.0f) * 255.0f + 0.5f);
-    return IM_COL32((nARGB >> 16) & 0xFF, (nARGB >> 8) & 0xFF, nARGB & 0xFF, nAlpha);
-}
-
-void ImGuiSurface::Replay(ImDrawList& pDrawList, float fX, float fY) const
-{
-    auto* pRepository = ImGuiImageRepository::Get();
-    const auto& pTextures = GetTextureHandlers();
-
-    for (const auto& pOp : m_vOps)
-    {
-        if (pOp.fAlpha <= 0.0f)
-            continue;
-
-        const ImVec2 pMin(fX + pOp.fX, fY + pOp.fY);
-        const ImVec2 pMax(pMin.x + pOp.fWidth, pMin.y + pOp.fHeight);
-        pDrawList.PushClipRect(ImVec2(fX + pOp.fClipLeft, fY + pOp.fClipTop),
-                               ImVec2(fX + pOp.fClipRight, fY + pOp.fClipBottom), true);
-
-        switch (pOp.nType)
-        {
-            case OpType::Rectangle:
-                pDrawList.AddRectFilled(pMin, pMax, ToImColor(pOp.nColor, pOp.fAlpha));
-                break;
-
-            case OpType::Text:
-            {
-                const ImU32 nColor = ToImColor(pOp.nColor, pOp.fAlpha);
-                pDrawList.AddText(ImGui::GetFont(), pOp.fFontSize, pMin, nColor, pOp.sText.c_str());
-                if (pOp.bBold) // the default font has no bold face
-                    pDrawList.AddText(ImGui::GetFont(), pOp.fFontSize, ImVec2(pMin.x + 1.0f, pMin.y), nColor,
-                                      pOp.sText.c_str());
-                break;
-            }
-
-            case OpType::Image:
-            {
-                int nImageWidth = 0, nImageHeight = 0;
-                const uintptr_t nTexture = pRepository ?
-                    pRepository->GetTexture(pOp.nImageType, pOp.sImageName, &nImageWidth, &nImageHeight) : 0;
-                if (nTexture == 0)
-                    break;
-
-                // like the Win32 image repository, which resizes larger images (i.e. user pictures) when loading
-                // them, unstretched images that don't fit the requested area are scaled down to it
-                float fImageWidth = static_cast<float>(nImageWidth);
-                float fImageHeight = static_cast<float>(nImageHeight);
-                if (!pOp.bStretch && (fImageWidth > pMax.x - pMin.x || fImageHeight > pMax.y - pMin.y))
-                {
-                    const float fScale = (std::min)((pMax.x - pMin.x) / fImageWidth, (pMax.y - pMin.y) / fImageHeight);
-                    fImageWidth *= fScale;
-                    fImageHeight *= fScale;
-                }
-                const ImVec2 pImageMax = pOp.bStretch ? pMax : ImVec2(pMin.x + fImageWidth, pMin.y + fImageHeight);
-                if (!pOp.bStretch) // unstretched images are cropped to the requested area
-                    pDrawList.PushClipRect(pMin, pMax, true);
-                pDrawList.AddImage(static_cast<ImTextureID>(nTexture), pMin, pImageMax, ImVec2(0, 0), ImVec2(1, 1),
-                                   IM_COL32(255, 255, 255, static_cast<int>(pOp.fAlpha * 255.0f)));
-                if (!pOp.bStretch)
-                    pDrawList.PopClipRect();
-                break;
-            }
-
-            case OpType::Pixels:
-            {
-                auto& pPixels = *pOp.pPixels;
-                if (pPixels.nTexture == 0 && pTextures.fpCreateFromPixels)
-                    pPixels.nTexture = pTextures.fpCreateFromPixels(pPixels.vPixels.data(), pPixels.nWidth, pPixels.nHeight);
-
-                if (pPixels.nTexture != 0)
-                    pDrawList.AddImage(static_cast<ImTextureID>(pPixels.nTexture), pMin, pMax, ImVec2(0, 0),
-                                       ImVec2(1, 1), IM_COL32(255, 255, 255, static_cast<int>(pOp.fAlpha * 255.0f)));
-                break;
-            }
-        }
-
-        pDrawList.PopClipRect();
-    }
-}
-
-bool ImGuiSurfaceFactory::SaveImage([[maybe_unused]] const ra::ui::drawing::ISurface& pSurface,
-                                    const std::wstring& sPath) const
-{
-    RA_LOG_WARN("Saving images is not supported by the ImGui backend: %s", ra::util::String::Narrow(sPath).c_str());
+    RA_LOG_WARN("Saving images is not supported: %s", ra::util::String::Narrow(sPath).c_str());
     return false;
 }
 
-} // namespace imgui
+} // namespace drawing
 } // namespace ui
 } // namespace ra
