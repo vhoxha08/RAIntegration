@@ -112,6 +112,38 @@ void OverlayTheme::LoadFromFile()
     pJson.TryGetBoolean("Transparent", m_bTransparent);
 }
 
+void EditorTheme::ApplyDarkColors() noexcept
+{
+    m_colorBackground = Color(255, 30, 30, 30);
+    m_colorSeparator = Color(255, 70, 70, 70);
+    m_colorCursor = Color(255, 75, 75, 95);
+    m_colorNormal = Color(255, 220, 220, 220);
+    m_colorSelected = Color(255, 255, 110, 110);
+    m_colorHasNote = Color(255, 110, 160, 255);
+    m_colorHasSurrogateNote = Color(255, 130, 150, 210);
+    m_colorHasBookmark = Color(255, 100, 210, 100);
+    m_colorFrozen = Color(255, 255, 200, 0);
+    m_colorHeader = Color(255, 140, 140, 140);
+    m_colorHeaderSelected = Color(255, 255, 120, 120);
+
+    m_colorNoteNormal = Color(255, 225, 225, 225);
+    m_colorNoteModified = Color(255, 255, 130, 130);
+
+    m_colorTriggerIsTrue = Color(255, 40, 90, 40);
+    m_colorTriggerWasTrue = Color(255, 45, 45, 105);
+    m_colorTriggerBecomingTrue = Color(255, 30, 90, 90);
+    m_colorTriggerResetTrue = Color(255, 90, 90, 30);
+    m_colorTriggerPauseTrue = Color(255, 105, 40, 40);
+
+    m_colorExplainConflicting = Color(255, 105, 40, 40);
+    m_colorExplainTriggerWhen = Color(255, 40, 90, 40);
+    m_colorExplainWhile = Color(255, 45, 45, 105);
+    m_colorExplainUnless = Color(255, 110, 70, 20);
+    m_colorExplainStartingWhen = Color(255, 100, 90, 30);
+    m_colorExplainFailingWhen = Color(255, 105, 40, 40);
+    m_colorExplainImpotent = Color(255, 70, 70, 70);
+}
+
 void EditorTheme::LoadFromFile()
 {
     const auto& pFileSystem = ra::services::ServiceLocator::Get<ra::services::IFileSystem>();

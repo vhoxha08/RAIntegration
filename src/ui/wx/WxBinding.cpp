@@ -4,6 +4,7 @@
 
 #include <wx/checkbox.h>
 #include <wx/radiobut.h>
+#include <wx/settings.h>
 #include <wx/sizer.h>
 #include <wx/textentry.h>
 #include <wx/window.h>
@@ -212,8 +213,16 @@ wxColour ReadableTextColour(const wxColour& pText, const wxColour& pBackground)
     if (ContrastRatio(pText, pBackground) >= MIN_CONTRAST)
         return pText;
 
-    // blend towards white on dark backgrounds and towards black on light ones until it's readable
+    // a gray (i.e. the toolkit's default black) is just "text": use the system's text color if that's readable
     const bool bDarkBackground = RelativeLuminance(pBackground) < 0.18;
+    if (pText.Red() == pText.Green() && pText.Green() == pText.Blue())
+    {
+        const wxColour pSystemText = wxSystemSettings::GetColour(wxSYS_COLOUR_LISTBOXTEXT);
+        if (ContrastRatio(pSystemText, pBackground) >= MIN_CONTRAST)
+            return pSystemText;
+    }
+
+    // blend colors towards white on dark backgrounds and towards black on light ones until they're readable
     const double fTarget = bDarkBackground ? 255.0 : 0.0;
     for (int nStep = 1; nStep <= 10; ++nStep)
     {

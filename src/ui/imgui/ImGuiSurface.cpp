@@ -295,6 +295,16 @@ void ImGuiSurface::DrawSurface(int nX, int nY, const ISurface& pSurface, int nSu
 
     for (const auto& pSourceOp : pSource->m_vOps)
     {
+        // only copy commands that draw something inside the requested region (i.e. one glyph of a font image)
+        const float fClipLeft = std::max({pSourceOp.fClipLeft + fOffsetX, pSourceOp.fX + fOffsetX, fLeft});
+        const float fClipTop = std::max({pSourceOp.fClipTop + fOffsetY, pSourceOp.fY + fOffsetY, fTop});
+        const float fClipRight = std::min({pSourceOp.fClipRight + fOffsetX,
+                                           pSourceOp.fX + pSourceOp.fWidth + fOffsetX, fRight});
+        const float fClipBottom = std::min({pSourceOp.fClipBottom + fOffsetY,
+                                            pSourceOp.fY + pSourceOp.fHeight + fOffsetY, fBottom});
+        if (fClipLeft >= fClipRight || fClipTop >= fClipBottom)
+            continue;
+
         Op pOp = pSourceOp;
         pOp.fX += fOffsetX;
         pOp.fY += fOffsetY;
@@ -302,8 +312,7 @@ void ImGuiSurface::DrawSurface(int nX, int nY, const ISurface& pSurface, int nSu
         pOp.fClipTop = std::max(pOp.fClipTop + fOffsetY, fTop);
         pOp.fClipRight = std::min(pOp.fClipRight + fOffsetX, fRight);
         pOp.fClipBottom = std::min(pOp.fClipBottom + fOffsetY, fBottom);
-        if (pOp.fClipLeft < pOp.fClipRight && pOp.fClipTop < pOp.fClipBottom)
-            AddOp(std::move(pOp));
+        AddOp(std::move(pOp));
     }
 }
 

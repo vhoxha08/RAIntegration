@@ -4,6 +4,10 @@
 #include "ui/wx/WxTestHooks.hh"
 #endif
 
+#include "services/IFileSystem.hh"
+#include "services/ServiceLocator.hh"
+
+#include "ui/EditorTheme.hh"
 #include "ui/imgui/ImGuiSurface.hh"
 
 #include <wx/app.h>
@@ -12,6 +16,7 @@
 #include <wx/image.h>
 #include <wx/init.h>
 #include <wx/log.h>
+#include <wx/settings.h>
 #include <wx/string.h>
 
 #include <map>
@@ -70,6 +75,17 @@ bool EnsureWxInitialized()
 
     // badges and other images are PNG/JPEG files
     wxInitAllImageHandlers();
+
+    // the editor colors default to a light theme; follow the system's dark mode unless they come from a file
+    if (wxSystemSettings::GetAppearance().IsDark() && ra::services::ServiceLocator::Exists<ra::ui::EditorTheme>())
+    {
+        const auto& pFileSystem = ra::services::ServiceLocator::Get<ra::services::IFileSystem>();
+        if (pFileSystem.GetFileSize(pFileSystem.BaseDirectory() + L"Overlay\\editor_theme.json") < 0 &&
+            pFileSystem.GetFileSize(pFileSystem.BaseDirectory() + L"Overlay/editor_theme.json") < 0)
+        {
+            ra::services::ServiceLocator::GetMutable<ra::ui::EditorTheme>().ApplyDarkColors();
+        }
+    }
 
     // the toolkit reports problems itself; wxWidgets' own messages go to the log instead of a dialog
     delete wxLog::SetActiveTarget(new wxLogStderr());

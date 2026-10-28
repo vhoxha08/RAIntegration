@@ -62,6 +62,12 @@ public:
 
     void LoadFromFile();
 
+    /// <summary>
+    /// Replaces the default (light) colors with colors for a dark user interface. Not used when the colors are
+    /// loaded from a file.
+    /// </summary>
+    void ApplyDarkColors() noexcept;
+
 private:
     std::string m_sFontMemoryViewer = "Consolas";
     int m_nFontSizeMemoryViewer = 17;
