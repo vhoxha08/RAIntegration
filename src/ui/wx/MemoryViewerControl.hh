@@ -5,6 +5,10 @@
 #include "ui/viewmodels/MemoryViewerViewModel.hh"
 
 #include <wx/bitmap.h>
+#include <wx/graphics.h>
+
+#include <string>
+#include <unordered_map>
 #include <wx/window.h>
 
 
@@ -44,6 +48,14 @@ private:
     bool HandleShortcut(const wxKeyEvent& event);
 
     void UpdateBackingImage();
+    struct TextBitmap
+    {
+        wxGraphicsBitmap pBitmap;
+        double fWidth = 0.0;
+        double fHeight = 0.0;
+    };
+    const TextBitmap& GetTextBitmap(const std::string& sText, const std::string& sFontFace, float fFontSize,
+                                    bool bBold, uint32_t nColor);
 
     ra::ui::viewmodels::MemoryViewerViewModel& m_vmViewer;
 
@@ -51,6 +63,9 @@ private:
     wxBitmap m_pBacking;
     const void* m_pBackingSurface = nullptr;
     uint64_t m_nBackingSequence = 0;
+
+    // laying text out is expensive and the viewer draws the same few hundred strings over and over
+    std::unordered_map<std::string, TextBitmap> m_mTextBitmaps;
 };
 
 } // namespace wx

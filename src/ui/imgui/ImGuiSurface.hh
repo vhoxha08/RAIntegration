@@ -87,6 +87,12 @@ public:
     const std::vector<Op>& GetOps() const noexcept { return m_vOps; }
 
     /// <summary>
+    /// Drops the recorded commands up to and including <paramref name="nSequence" />. For renderers that keep
+    /// their own image and only draw what was added since (see GetOps), so the recording doesn't have to.
+    /// </summary>
+    void DiscardOps(uint64_t nSequence) const;
+
+    /// <summary>
     /// Measures text for surfaces that are not drawn by ImGui (i.e. by native windows). Used on the UI thread
     /// outside of ImGui frames; elsewhere the size is estimated.
     /// </summary>
@@ -111,7 +117,7 @@ private:
     int m_nWidth;
     int m_nHeight;
     bool m_bTransparent;
-    std::vector<Op> m_vOps;
+    mutable std::vector<Op> m_vOps; // DiscardOps is const: it doesn't change what the surface shows
     uint64_t m_nNextSequence = 1;
 
     static Font GetFont(int nFont);

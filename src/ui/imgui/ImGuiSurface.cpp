@@ -100,6 +100,22 @@ void ImGuiSurface::AddOp(Op&& pOp)
     m_vOps.push_back(std::move(pOp));
 }
 
+void ImGuiSurface::DiscardOps(uint64_t nSequence) const
+{
+    if (m_vOps.empty() || m_vOps.front().nSequence > nSequence)
+        return;
+
+    if (m_vOps.back().nSequence <= nSequence)
+    {
+        m_vOps.clear();
+        return;
+    }
+
+    const auto pFirstKept = std::find_if(m_vOps.begin(), m_vOps.end(),
+                                         [nSequence](const Op& pOp) { return pOp.nSequence > nSequence; });
+    m_vOps.erase(m_vOps.begin(), pFirstKept);
+}
+
 void ImGuiSurface::RemoveCoveredOps(const Op& pOpaqueOp)
 {
     // Views like the memory viewer draw once and then only repaint what changed, each repaint starting with an

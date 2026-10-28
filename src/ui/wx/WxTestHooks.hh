@@ -13,6 +13,7 @@ namespace wx {
 ///   click label        presses the button titled label in the frontmost window
 ///   type text          sets the text of the focused text field
 ///   selectrow n [t]    selects row n of the first table (list) in a visible window (whose title starts with t)
+///   cancelmenus        closes open drop down menus
 ///   list               logs the visible windows and their buttons
 /// </summary>
 void StartTestHooks();

@@ -2,10 +2,10 @@
 
 #import <AppKit/AppKit.h>
 
-#include <wx/timer.h>
 
 #include <cstdio>
 #include <cstdlib>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -155,6 +155,19 @@ void RunStep(const Step& pStep)
             break;
         }
     }
+    else if (pStep.sAction == "cancelmenus")
+    {
+        // closes open drop down menus (opened by clicking a pop-up button)
+        std::function<void(NSView*)> Cancel = [&Cancel](NSView* pView) {
+            if ([pView isKindOfClass:[NSPopUpButton class]])
+                [[(NSPopUpButton*)pView menu] cancelTracking];
+            for (NSView* pChild in [pView subviews])
+                Cancel(pChild);
+        };
+        for (NSWindow* pWindow in [NSApp windows])
+            Cancel([pWindow contentView]);
+        fprintf(stderr, "RA_WX_TEST cancelled menus\n");
+    }
     else if (pStep.sAction == "list")
     {
         for (NSWindow* pWindow in [NSApp windows])
@@ -167,26 +180,6 @@ void RunStep(const Step& pStep)
         }
     }
 }
-
-class TestTimer : public wxTimer
-{
-public:
-    explicit TestTimer(std::vector<Step>&& vSteps) : m_vSteps(std::move(vSteps)) {}
-
-    void Notify() override
-    {
-        ++m_nTick;
-        for (const auto& pStep : m_vSteps)
-        {
-            if (pStep.nTick == m_nTick)
-                RunStep(pStep);
-        }
-    }
-
-private:
-    std::vector<Step> m_vSteps;
-    int m_nTick = 0;
-};
 
 } // namespace
 
@@ -218,9 +211,21 @@ void StartTestHooks()
         }
     }
 
-    // runs for the rest of the process, also inside native modal loops
-    auto* pTimer = new TestTimer(std::move(vSteps));
-    pTimer->Start(100);
+    // runs for the rest of the process, in every run loop mode (also inside menus, resizing and modal loops)
+    static std::vector<Step> s_vSteps;
+    static int s_nTick = 0;
+    s_vSteps = std::move(vSteps);
+    CFRunLoopTimerRef pTimer = CFRunLoopTimerCreateWithHandler(
+        kCFAllocatorDefault, CFAbsoluteTimeGetCurrent() + 0.1, 0.1, 0, 0, ^(CFRunLoopTimerRef) {
+            ++s_nTick;
+            for (const auto& pStep : s_vSteps)
+            {
+                if (pStep.nTick == s_nTick)
+                    RunStep(pStep);
+            }
+        });
+    CFRunLoopAddTimer(CFRunLoopGetMain(), pTimer, kCFRunLoopCommonModes);
+    CFRelease(pTimer);
 }
 
 } // namespace wx
