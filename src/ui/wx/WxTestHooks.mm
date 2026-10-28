@@ -121,7 +121,13 @@ void RunStep(const Step& pStep)
         }
         fprintf(stderr, "RA_WX_TEST click '%s' in '%s': %s\n", pStep.sArgs.c_str(), [[pWindow title] UTF8String],
                 pButton ? "found" : "not found");
-        [pButton performClick:nil];
+        // after this step: the click may open a modal window, which would block the steps until it closes. Not
+        // on the main dispatch queue, which is serial: a later click couldn't close that window.
+        if (pButton != nil)
+        {
+            CFRunLoopPerformBlock(CFRunLoopGetMain(), kCFRunLoopCommonModes, ^{ [pButton performClick:nil]; });
+            CFRunLoopWakeUp(CFRunLoopGetMain());
+        }
     }
     else if (pStep.sAction == "type")
     {
