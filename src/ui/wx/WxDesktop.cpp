@@ -5,9 +5,13 @@
 #include "ui/wx/BrokenAchievementsDialog.hh"
 #include "ui/wx/GameChecksumDialog.hh"
 #include "ui/wx/LoginDialog.hh"
+#include "ui/wx/MemoryBookmarksDialog.hh"
 #include "ui/wx/MemoryInspectorDialog.hh"
 #include "ui/wx/OverlaySettingsDialog.hh"
+#include "ui/wx/PointerFinderDialog.hh"
+#include "ui/wx/PointerInspectorDialog.hh"
 #include "ui/wx/RichPresenceDialog.hh"
+#include "ui/wx/SmallDialogs.hh"
 #include "ui/wx/UnknownGameDialog.hh"
 #include "ui/wx/WxApp.hh"
 #include "ui/wx/WxDialog.hh"
@@ -49,6 +53,30 @@ WxDialog* WxDesktop::CreateDialog(WindowViewModelBase& vmViewModel)
 
     if (auto* vmMemoryInspector = dynamic_cast<ra::ui::viewmodels::MemoryInspectorViewModel*>(&vmViewModel))
         return new MemoryInspectorDialog(*vmMemoryInspector);
+
+    if (auto* vmBookmarks = dynamic_cast<ra::ui::viewmodels::MemoryBookmarksViewModel*>(&vmViewModel))
+        return new MemoryBookmarksDialog(*vmBookmarks);
+
+    if (auto* vmPointerFinder = dynamic_cast<ra::ui::viewmodels::PointerFinderViewModel*>(&vmViewModel))
+        return new PointerFinderDialog(*vmPointerFinder);
+
+    if (auto* vmPointerInspector = dynamic_cast<ra::ui::viewmodels::PointerInspectorViewModel*>(&vmViewModel))
+        return new PointerInspectorDialog(*vmPointerInspector);
+
+    if (auto* vmMemoryNotes = dynamic_cast<ra::ui::viewmodels::MemoryNotesViewModel*>(&vmViewModel))
+        return new MemoryNotesDialog(*vmMemoryNotes);
+
+    if (auto* vmMemoryRegions = dynamic_cast<ra::ui::viewmodels::MemoryRegionsViewModel*>(&vmViewModel))
+        return new MemoryRegionsDialog(*vmMemoryRegions);
+
+    if (auto* vmNewAsset = dynamic_cast<ra::ui::viewmodels::NewAssetViewModel*>(&vmViewModel))
+        return new NewAssetDialog(*vmNewAsset);
+
+    if (auto* vmProgress = dynamic_cast<ra::ui::viewmodels::ProgressViewModel*>(&vmViewModel))
+        return new ProgressDialog(*vmProgress);
+
+    if (auto* vmTriggerSummary = dynamic_cast<ra::ui::viewmodels::TriggerSummaryViewModel*>(&vmViewModel))
+        return new TriggerSummaryDialog(*vmTriggerSummary);
 
     return nullptr;
 }

@@ -12,7 +12,7 @@ namespace wx {
 ///   capture prefix     saves each visible window of the process to prefix_N.png
 ///   click label        presses the button titled label in the frontmost window
 ///   type text          sets the text of the focused text field
-///   selectrow n        selects row n of the first table (list) in a visible window
+///   selectrow n [t]    selects row n of the first table (list) in a visible window (whose title starts with t)
 ///   list               logs the visible windows and their buttons
 /// </summary>
 void StartTestHooks();

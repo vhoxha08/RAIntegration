@@ -2,6 +2,9 @@
 
 #include "ui/wx/WxApp.hh"
 
+#include <wx/checkbox.h>
+#include <wx/radiobut.h>
+#include <wx/sizer.h>
 #include <wx/textentry.h>
 #include <wx/window.h>
 
@@ -44,13 +47,104 @@ void ChangeWatcher::Detach() noexcept
     m_vCollections.clear();
 }
 
+ViewModelAccess& Binder::Access(ViewModelBase& vmViewModel)
+{
+    for (auto& pAccess : m_vAccess)
+    {
+        if (pAccess.first == &vmViewModel)
+            return *pAccess.second;
+    }
+
+    m_vAccess.emplace_back(&vmViewModel, std::make_unique<ViewModelAccess>(vmViewModel));
+    return *m_vAccess.back().second;
+}
+
+void Binder::BindText(wxTextEntry* pControl, ViewModelBase& vmViewModel, const StringModelProperty& pProperty)
+{
+    auto& pAccess = Access(vmViewModel);
+    auto* pWindow = dynamic_cast<wxWindow*>(pControl);
+    Expects(pWindow != nullptr);
+    pWindow->Bind(wxEVT_TEXT, [pControl, &pAccess, &pProperty](wxCommandEvent&) {
+        pAccess.SetValue(pProperty, FromWx(pControl->GetValue()));
+    });
+    m_vUpdaters.push_back([pControl, &pAccess, &pProperty]() { SetTextIfChanged(*pControl, pAccess.GetValue(pProperty)); });
+}
+
+void Binder::BindLabel(wxWindow* pControl, ViewModelBase& vmViewModel, const StringModelProperty& pProperty)
+{
+    auto& pAccess = Access(vmViewModel);
+    m_vUpdaters.push_back([pControl, &pAccess, &pProperty]() { SetLabelIfChanged(*pControl, pAccess.GetValue(pProperty)); });
+}
+
+void Binder::BindEnabled(wxWindow* pControl, ViewModelBase& vmViewModel, const BoolModelProperty& pProperty)
+{
+    auto& pAccess = Access(vmViewModel);
+    m_vUpdaters.push_back([pControl, &pAccess, &pProperty]() { pControl->Enable(pAccess.GetValue(pProperty)); });
+}
+
+void Binder::BindVisible(wxWindow* pControl, ViewModelBase& vmViewModel, const BoolModelProperty& pProperty)
+{
+    auto& pAccess = Access(vmViewModel);
+    m_vUpdaters.push_back([pControl, &pAccess, &pProperty]() {
+        const bool bVisible = pAccess.GetValue(pProperty);
+        if (pControl->IsShown() != bVisible)
+        {
+            pControl->Show(bVisible);
+            if (auto* pSizer = pControl->GetContainingSizer())
+                pSizer->Layout();
+        }
+    });
+}
+
+void Binder::BindCheck(wxCheckBox* pControl, ViewModelBase& vmViewModel, const BoolModelProperty& pProperty)
+{
+    auto& pAccess = Access(vmViewModel);
+    pControl->Bind(wxEVT_CHECKBOX, [&pAccess, &pProperty](wxCommandEvent& event) {
+        pAccess.SetValue(pProperty, event.IsChecked());
+    });
+    m_vUpdaters.push_back([pControl, &pAccess, &pProperty]() {
+        if (pControl->GetValue() != pAccess.GetValue(pProperty))
+            pControl->SetValue(pAccess.GetValue(pProperty));
+    });
+}
+
+void Binder::BindChoice(LookupChoice* pControl, const ra::ui::viewmodels::LookupItemViewModelCollection& vItems,
+                        ViewModelBase& vmViewModel, const IntModelProperty& pProperty)
+{
+    auto& pAccess = Access(vmViewModel);
+    pControl->SetOnSelected([&pAccess, &pProperty](int nId) { pAccess.SetValue(pProperty, nId); });
+    m_vUpdaters.push_back([pControl, &vItems, &pAccess, &pProperty]() {
+        pControl->Update(vItems, pAccess.GetValue(pProperty));
+    });
+}
+
+void Binder::BindRadio(wxRadioButton* pControl, ViewModelBase& vmViewModel, const IntModelProperty& pProperty,
+                       int nValue)
+{
+    auto& pAccess = Access(vmViewModel);
+    pControl->Bind(wxEVT_RADIOBUTTON, [&pAccess, &pProperty, nValue](wxCommandEvent&) {
+        pAccess.SetValue(pProperty, nValue);
+    });
+    m_vUpdaters.push_back([pControl, &pAccess, &pProperty, nValue]() {
+        const bool bSelected = (pAccess.GetValue(pProperty) == nValue);
+        if (bSelected && !pControl->GetValue())
+            pControl->SetValue(true);
+    });
+}
+
+void Binder::Update()
+{
+    for (const auto& fUpdate : m_vUpdaters)
+        fUpdate();
+}
+
 LookupChoice::LookupChoice(wxWindow* pParent, std::function<void(int)> fOnSelected) :
     wxChoice(pParent, wxID_ANY),
     m_fOnSelected(std::move(fOnSelected))
 {
     Bind(wxEVT_CHOICE, [this](wxCommandEvent&) {
         const int nIndex = GetSelection();
-        if (nIndex >= 0 && gsl::narrow_cast<size_t>(nIndex) < m_vItems.size())
+        if (m_fOnSelected && nIndex >= 0 && gsl::narrow_cast<size_t>(nIndex) < m_vItems.size())
             m_fOnSelected(m_vItems.at(gsl::narrow_cast<size_t>(nIndex)).first);
     });
 }

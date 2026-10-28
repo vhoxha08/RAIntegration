@@ -206,16 +206,22 @@ if(NOT WIN32)
       src/ui/wx/BrokenAchievementsDialog.cpp
       src/ui/wx/GameChecksumDialog.cpp
       src/ui/wx/LoginDialog.cpp
+      src/ui/wx/MemoryBookmarksDialog.cpp
       src/ui/wx/MemoryInspectorDialog.cpp
       src/ui/wx/MemoryViewerControl.cpp
+      src/ui/wx/MemoryWatchColumns.cpp
       src/ui/wx/OverlaySettingsDialog.cpp
       src/ui/wx/PlatformUi.cpp
+      src/ui/wx/PointerFinderDialog.cpp
+      src/ui/wx/PointerInspectorDialog.cpp
       src/ui/wx/RichPresenceDialog.cpp
+      src/ui/wx/SmallDialogs.cpp
       src/ui/wx/UnknownGameDialog.cpp
       src/ui/wx/WxApp.cpp
       src/ui/wx/WxBinding.cpp
       src/ui/wx/WxDesktop.cpp
       src/ui/wx/WxDialog.cpp
+      src/ui/wx/WxGrid.cpp
     )
     target_link_libraries(RAIntegrationWx PUBLIC RAIntegrationCore imgui wx::core wx::base)
     # test automation for the native windows (see src/ui/wx/WxTestHooks.hh)

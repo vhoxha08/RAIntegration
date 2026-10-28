@@ -134,9 +134,16 @@ void RunStep(const Step& pStep)
     }
     else if (pStep.sAction == "selectrow")
     {
-        // selects a row of the first table in a visible window (like clicking it)
+        // "selectrow n [window title prefix]": selects a row of the first table in a (matching) visible window,
+        // like clicking it
+        const auto nSpace = pStep.sArgs.find(' ');
+        NSString* sPrefix = (nSpace == std::string::npos) ? @""
+                                : [NSString stringWithUTF8String:pStep.sArgs.substr(nSpace + 1).c_str()];
         for (NSWindow* pWindow in [NSApp windows])
         {
+            if ([sPrefix length] > 0 && ![[pWindow title] hasPrefix:sPrefix])
+                continue;
+
             NSTableView* pTable = [pWindow isVisible] ? FindTable([pWindow contentView]) : nil;
             if (pTable == nil)
                 continue;
