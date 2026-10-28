@@ -82,6 +82,12 @@ bool OverlayViewModel::UpdateRenderImage(double fElapsed)
                 if (nNewX == 0)
                     m_nState = State::Visible;
             }
+            else if (nNewX == 0 && m_fAnimationProgress >= INOUT_TIME)
+            {
+                // already in place: without a slide (or when the starting offset wasn't known), nothing moves
+                m_nState = State::Visible;
+                bUpdated = true;
+            }
         }
         else if (m_nState == State::FadeOut)
         {
