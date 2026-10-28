@@ -9,7 +9,9 @@
 #include <wx/app.h>
 #include <wx/dcscreen.h>
 #include <wx/font.h>
+#include <wx/image.h>
 #include <wx/init.h>
+#include <wx/log.h>
 #include <wx/string.h>
 
 #include <map>
@@ -65,6 +67,12 @@ bool EnsureWxInitialized()
     }
 
     s_nState = WxState::Running;
+
+    // badges and other images are PNG/JPEG files
+    wxInitAllImageHandlers();
+
+    // the toolkit reports problems itself; wxWidgets' own messages go to the log instead of a dialog
+    delete wxLog::SetActiveTarget(new wxLogStderr());
 
     // surfaces painted by native windows (i.e. the memory viewer) lay out text with the native fonts
     ra::ui::imgui::ImGuiSurface::SetTextMeasurer(

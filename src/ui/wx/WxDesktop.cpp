@@ -2,6 +2,8 @@
 
 #include "ui/viewmodels/FileDialogViewModel.hh"
 #include "ui/viewmodels/MessageBoxViewModel.hh"
+#include "ui/wx/AssetEditorDialog.hh"
+#include "ui/wx/AssetListDialog.hh"
 #include "ui/wx/BrokenAchievementsDialog.hh"
 #include "ui/wx/GameChecksumDialog.hh"
 #include "ui/wx/LoginDialog.hh"
@@ -62,6 +64,12 @@ WxDialog* WxDesktop::CreateDialog(WindowViewModelBase& vmViewModel)
 
     if (auto* vmPointerInspector = dynamic_cast<ra::ui::viewmodels::PointerInspectorViewModel*>(&vmViewModel))
         return new PointerInspectorDialog(*vmPointerInspector);
+
+    if (auto* vmAssetEditor = dynamic_cast<ra::ui::viewmodels::AssetEditorViewModel*>(&vmViewModel))
+        return new AssetEditorDialog(*vmAssetEditor);
+
+    if (auto* vmAssetList = dynamic_cast<ra::ui::viewmodels::AssetListViewModel*>(&vmViewModel))
+        return new AssetListDialog(*vmAssetList);
 
     if (auto* vmMemoryNotes = dynamic_cast<ra::ui::viewmodels::MemoryNotesViewModel*>(&vmViewModel))
         return new MemoryNotesDialog(*vmMemoryNotes);

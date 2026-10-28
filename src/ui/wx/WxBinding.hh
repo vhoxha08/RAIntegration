@@ -84,6 +84,7 @@ class Binder
 public:
     void BindText(wxTextEntry* pControl, ViewModelBase& vmViewModel, const StringModelProperty& pProperty);
     void BindLabel(wxWindow* pControl, ViewModelBase& vmViewModel, const StringModelProperty& pProperty);
+    void BindLabel(wxWindow* pControl, ViewModelBase& vmViewModel, const IntModelProperty& pProperty);
     void BindEnabled(wxWindow* pControl, ViewModelBase& vmViewModel, const BoolModelProperty& pProperty);
     void BindVisible(wxWindow* pControl, ViewModelBase& vmViewModel, const BoolModelProperty& pProperty);
     void BindCheck(wxCheckBox* pControl, ViewModelBase& vmViewModel, const BoolModelProperty& pProperty);
@@ -99,9 +100,12 @@ public:
 
     void Update();
 
-private:
+    /// <summary>
+    /// Property access for custom update code.
+    /// </summary>
     ViewModelAccess& Access(ViewModelBase& vmViewModel);
 
+private:
     std::vector<std::pair<ViewModelBase*, std::unique_ptr<ViewModelAccess>>> m_vAccess;
     std::vector<std::function<void()>> m_vUpdaters;
 };

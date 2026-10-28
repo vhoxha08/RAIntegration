@@ -203,6 +203,8 @@ if(NOT WIN32)
       src/ui/imgui/ImGuiImageRepository.cpp
       src/ui/imgui/ImGuiOverlay.cpp
       src/ui/imgui/ImGuiSurface.cpp
+      src/ui/wx/AssetEditorDialog.cpp
+      src/ui/wx/AssetListDialog.cpp
       src/ui/wx/BrokenAchievementsDialog.cpp
       src/ui/wx/GameChecksumDialog.cpp
       src/ui/wx/LoginDialog.cpp

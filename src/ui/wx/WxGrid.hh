@@ -43,6 +43,7 @@ struct GridColumn
     // Choice
     const IntModelProperty* pChoiceProperty = nullptr;
     const ra::ui::viewmodels::LookupItemViewModelCollection* pChoices = nullptr;
+    std::function<void(ViewModelCollectionBase&, gsl::index, int)> fSetChoice; // optional: instead of the property
 
     // optional: whether a row can be edited, text color per row (ARGB, alpha 0 = default)
     std::function<bool(const ViewModelCollectionBase&, gsl::index)> fIsEditable;
@@ -103,6 +104,20 @@ public:
     void SetDoubleClickHandler(std::function<void(gsl::index)> fHandler) { m_fDoubleClick = std::move(fHandler); }
 
     /// <summary>
+    /// Called with the (sorted) selected indices when the user changes the selection, instead of setting the
+    /// IsSelected property of the items (for view models that track the selection themselves).
+    /// </summary>
+    void SetSelectionHandler(std::function<void(const std::vector<gsl::index>&)> fHandler)
+    {
+        m_fSelectionChanged = std::move(fHandler);
+    }
+
+    /// <summary>
+    /// Called with the item index when the user right clicks (or Ctrl-clicks) an item.
+    /// </summary>
+    void SetContextMenuHandler(std::function<void(gsl::index)> fHandler) { m_fContextMenu = std::move(fHandler); }
+
+    /// <summary>
     /// Index of the (first) selected item, or -1.
     /// </summary>
     gsl::index GetSelectedIndex() const;
@@ -111,6 +126,11 @@ public:
     /// Refreshes all rows (for columns that depend on state outside of the items).
     /// </summary>
     void RefreshItems();
+
+    /// <summary>
+    /// Scrolls the item at <paramref name="nIndex" /> into view.
+    /// </summary>
+    void EnsureIndexVisible(gsl::index nIndex);
 
 protected:
     void OnViewModelBoolValueChanged(gsl::index nIndex, const BoolModelProperty::ChangeArgs& args) override;
@@ -137,6 +157,8 @@ private:
     const BoolModelProperty* m_pIsSelectedProperty = nullptr;
     const IntModelProperty* m_pRowColorProperty = nullptr;
     std::function<void(gsl::index)> m_fDoubleClick;
+    std::function<void(const std::vector<gsl::index>&)> m_fSelectionChanged;
+    std::function<void(gsl::index)> m_fContextMenu;
     int m_nUpdateDepth = 0;
     bool m_bResetPending = false;
     bool m_bSyncingSelection = false;

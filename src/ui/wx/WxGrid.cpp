@@ -4,6 +4,8 @@
 
 #include <wx/app.h>
 
+#include <algorithm>
+
 namespace ra {
 namespace ui {
 namespace wx {
@@ -172,7 +174,10 @@ public:
                 {
                     if (pChoice.GetLabel() == sLabel)
                     {
-                        vItems.SetItemValue(nRow, *pColumn.pChoiceProperty, pChoice.GetId());
+                        if (pColumn.fSetChoice)
+                            pColumn.fSetChoice(vItems, nRow, pChoice.GetId());
+                        else
+                            vItems.SetItemValue(nRow, *pColumn.pChoiceProperty, pChoice.GetId());
                         return true;
                     }
                 }
@@ -250,6 +255,10 @@ Grid::Grid(wxWindow* pParent, long nStyle) : wxDataViewCtrl(pParent, wxID_ANY, w
     m_pModel->DecRef(); // the control holds the reference
 
     Bind(wxEVT_DATAVIEW_SELECTION_CHANGED, [this](wxDataViewEvent&) { OnSelectionChanged(); });
+    Bind(wxEVT_DATAVIEW_ITEM_CONTEXT_MENU, [this](wxDataViewEvent& event) {
+        if (m_fContextMenu && event.GetItem().IsOk())
+            m_fContextMenu(gsl::narrow_cast<gsl::index>(m_pModel->GetRow(event.GetItem())));
+    });
     Bind(wxEVT_DATAVIEW_ITEM_ACTIVATED, [this](wxDataViewEvent& event) {
         if (m_fDoubleClick && event.GetItem().IsOk())
             m_fDoubleClick(gsl::narrow_cast<gsl::index>(m_pModel->GetRow(event.GetItem())));
@@ -328,6 +337,12 @@ void Grid::RefreshItems()
         m_pModel->RowChanged(nRow);
 }
 
+void Grid::EnsureIndexVisible(gsl::index nIndex)
+{
+    if (nIndex >= 0 && gsl::narrow_cast<unsigned int>(nIndex) < m_pModel->GetCount())
+        EnsureVisible(m_pModel->GetItem(gsl::narrow_cast<unsigned int>(nIndex)));
+}
+
 void Grid::Reset()
 {
     m_bResetPending = false;
@@ -364,7 +379,25 @@ void Grid::SyncSelectionFromItems()
 
 void Grid::OnSelectionChanged()
 {
-    if (m_bSyncingSelection || m_pIsSelectedProperty == nullptr || m_pItems == nullptr)
+    if (m_bSyncingSelection || m_pItems == nullptr)
+        return;
+
+    if (m_fSelectionChanged)
+    {
+        wxDataViewItemArray vItems;
+        GetSelections(vItems);
+        std::vector<gsl::index> vIndices;
+        for (const auto& pItem : vItems)
+            vIndices.push_back(gsl::narrow_cast<gsl::index>(m_pModel->GetRow(pItem)));
+        std::sort(vIndices.begin(), vIndices.end());
+
+        m_bSyncingSelection = true;
+        m_fSelectionChanged(vIndices);
+        m_bSyncingSelection = false;
+        return;
+    }
+
+    if (m_pIsSelectedProperty == nullptr)
         return;
 
     std::vector<bool> vSelected(m_pItems->Count(), false);

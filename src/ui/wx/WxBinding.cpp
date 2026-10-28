@@ -76,6 +76,14 @@ void Binder::BindLabel(wxWindow* pControl, ViewModelBase& vmViewModel, const Str
     m_vUpdaters.push_back([pControl, &pAccess, &pProperty]() { SetLabelIfChanged(*pControl, pAccess.GetValue(pProperty)); });
 }
 
+void Binder::BindLabel(wxWindow* pControl, ViewModelBase& vmViewModel, const IntModelProperty& pProperty)
+{
+    auto& pAccess = Access(vmViewModel);
+    m_vUpdaters.push_back([pControl, &pAccess, &pProperty]() {
+        SetLabelIfChanged(*pControl, std::to_wstring(pAccess.GetValue(pProperty)));
+    });
+}
+
 void Binder::BindEnabled(wxWindow* pControl, ViewModelBase& vmViewModel, const BoolModelProperty& pProperty)
 {
     auto& pAccess = Access(vmViewModel);
