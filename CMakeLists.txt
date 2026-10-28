@@ -226,14 +226,6 @@ if(NOT WIN32)
       src/ui/wx/WxGrid.cpp
     )
     target_link_libraries(RAIntegrationWx PUBLIC RAIntegrationCore imgui wx::core wx::base)
-    # test automation for the native windows (see src/ui/wx/WxTestHooks.hh)
-    option(RA_WX_TEST_HOOKS "Build the wxWidgets UI test hooks (RA_WX_TEST_SCRIPT)" OFF)
-    if(RA_WX_TEST_HOOKS AND APPLE)
-      target_sources(RAIntegrationWx PRIVATE src/ui/wx/WxTestHooks.mm)
-      target_compile_definitions(RAIntegrationWx PRIVATE RA_WX_TEST_HOOKS)
-      set_source_files_properties(src/ui/wx/WxTestHooks.mm PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
-      target_link_libraries(RAIntegrationWx PRIVATE "-framework AppKit")
-    endif()
 
     # own precompiled header: wxWidgets adds compile definitions the core's doesn't have
     target_precompile_headers(RAIntegrationWx PRIVATE src/pch.h)

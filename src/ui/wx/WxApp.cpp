@@ -1,9 +1,5 @@
 #include "WxApp.hh"
 
-#ifdef RA_WX_TEST_HOOKS
-#include "ui/wx/WxTestHooks.hh"
-#endif
-
 #include "services/IFileSystem.hh"
 #include "services/ServiceLocator.hh"
 
@@ -132,10 +128,6 @@ bool EnsureWxInitialized()
             dc.GetTextExtent(ToWx(sText), &nWidth, &nHeight);
             return ra::ui::Size{nWidth, nHeight};
         });
-
-#ifdef RA_WX_TEST_HOOKS
-    StartTestHooks();
-#endif
 
     return true;
 }
