@@ -7,6 +7,7 @@
 
 #include <wx/dataview.h>
 
+#include <atomic>
 #include <functional>
 #include <memory>
 #include <string>
@@ -148,6 +149,7 @@ private:
 
     void RowChanged(gsl::index nIndex);
     void Reset();
+    bool ScheduleResetIfNotMainThread();
     void SyncSelectionFromItems();
     void OnSelectionChanged();
 
@@ -162,6 +164,7 @@ private:
     int m_nUpdateDepth = 0;
     bool m_bResetPending = false;
     bool m_bSyncingSelection = false;
+    std::atomic<bool> m_bResetScheduled{false};
 };
 
 } // namespace wx

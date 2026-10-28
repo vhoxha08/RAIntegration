@@ -30,7 +30,7 @@ public:
     bool AcceptsFocus() const override { return true; }
 
 protected:
-    void OnRepaintMemoryViewer() override { Refresh(false); }
+    void OnRepaintMemoryViewer() override;
 
 private:
     void OnPaint(wxPaintEvent& event);

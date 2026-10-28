@@ -3,6 +3,7 @@
 #include "ui/wx/WxApp.hh"
 
 #include <wx/app.h>
+#include <wx/thread.h>
 
 #include <algorithm>
 
@@ -420,8 +421,32 @@ void Grid::OnSelectionChanged()
     m_bSyncingSelection = false;
 }
 
+bool Grid::ScheduleResetIfNotMainThread()
+{
+    // collections may change on other threads (i.e. when a server response arrives), but the control may only
+    // be changed on the main thread: refresh everything there, once
+    if (wxIsMainThread())
+        return false;
+
+    if (!m_bResetScheduled.exchange(true))
+    {
+        CallAfter([this]() {
+            m_bResetScheduled = false;
+            if (m_nUpdateDepth == 0)
+                Reset();
+            else
+                m_bResetPending = true;
+        });
+    }
+
+    return true;
+}
+
 void Grid::OnViewModelBoolValueChanged(gsl::index nIndex, const BoolModelProperty::ChangeArgs& args)
 {
+    if (ScheduleResetIfNotMainThread())
+        return;
+
     if (m_pIsSelectedProperty && args.Property == *m_pIsSelectedProperty)
     {
         if (!m_bSyncingSelection && m_nUpdateDepth == 0 && !m_bResetPending)
@@ -442,16 +467,25 @@ void Grid::OnViewModelBoolValueChanged(gsl::index nIndex, const BoolModelPropert
 
 void Grid::OnViewModelStringValueChanged(gsl::index nIndex, const StringModelProperty::ChangeArgs&)
 {
+    if (ScheduleResetIfNotMainThread())
+        return;
+
     RowChanged(nIndex);
 }
 
 void Grid::OnViewModelIntValueChanged(gsl::index nIndex, const IntModelProperty::ChangeArgs&)
 {
+    if (ScheduleResetIfNotMainThread())
+        return;
+
     RowChanged(nIndex);
 }
 
 void Grid::OnViewModelAdded(gsl::index)
 {
+    if (ScheduleResetIfNotMainThread())
+        return;
+
     if (m_nUpdateDepth > 0)
         m_bResetPending = true;
     else
@@ -460,18 +494,32 @@ void Grid::OnViewModelAdded(gsl::index)
 
 void Grid::OnViewModelRemoved(gsl::index)
 {
+    if (ScheduleResetIfNotMainThread())
+        return;
+
     if (m_nUpdateDepth > 0)
         m_bResetPending = true;
     else
         Reset();
 }
 
-void Grid::OnViewModelChanged(gsl::index nIndex) { RowChanged(nIndex); }
+void Grid::OnViewModelChanged(gsl::index nIndex)
+{
+    if (!ScheduleResetIfNotMainThread())
+        RowChanged(nIndex);
+}
 
-void Grid::OnBeginViewModelCollectionUpdate() { ++m_nUpdateDepth; }
+void Grid::OnBeginViewModelCollectionUpdate()
+{
+    if (!ScheduleResetIfNotMainThread())
+        ++m_nUpdateDepth;
+}
 
 void Grid::OnEndViewModelCollectionUpdate()
 {
+    if (ScheduleResetIfNotMainThread())
+        return;
+
     if (m_nUpdateDepth > 0 && --m_nUpdateDepth == 0)
     {
         if (m_bResetPending)

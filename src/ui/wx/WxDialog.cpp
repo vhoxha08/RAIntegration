@@ -3,6 +3,7 @@
 #include "ui/wx/WxApp.hh"
 
 #include <wx/button.h>
+#include <wx/thread.h>
 
 namespace ra {
 namespace ui {
@@ -71,8 +72,16 @@ void WxDialog::RunLater(std::function<void()> fAction)
 
 void WxDialog::OnViewModelStringValueChanged(const StringModelProperty::ChangeArgs& args)
 {
+    // view models may change on other threads (i.e. when a server response arrives); windows may only be
+    // changed on the main thread
     if (args.Property == WindowViewModelBase::WindowTitleProperty)
-        SetTitle(ToWx(args.tNewValue));
+    {
+        const wxString sTitle = ToWx(args.tNewValue);
+        if (wxIsMainThread())
+            SetTitle(sTitle);
+        else
+            CallAfter([this, sTitle]() { SetTitle(sTitle); });
+    }
 
     ScheduleUpdate();
 }

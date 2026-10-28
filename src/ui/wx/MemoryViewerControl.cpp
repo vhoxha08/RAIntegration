@@ -11,6 +11,7 @@
 #include <wx/dcbuffer.h>
 #include <wx/dcmemory.h>
 #include <wx/settings.h>
+#include <wx/thread.h>
 
 #include <algorithm>
 
@@ -49,6 +50,15 @@ MemoryViewerControl::MemoryViewerControl(wxWindow* pParent, ra::ui::viewmodels::
         Refresh(false);
         event.Skip();
     });
+}
+
+void MemoryViewerControl::OnRepaintMemoryViewer()
+{
+    // the view model may be updated on the emulator's thread; windows may only be changed on the main thread
+    if (wxIsMainThread())
+        Refresh(false);
+    else
+        CallAfter([this]() { Refresh(false); });
 }
 
 MemoryViewerControl::~MemoryViewerControl() { m_vmViewer.RemoveRepaintNotifyTarget(*this); }
