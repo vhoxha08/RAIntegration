@@ -26,7 +26,7 @@ struct GridColumn
     {
         Text,   // shown as text, edited with a text box
         Check,  // a check box bound to a bool property
-        Choice, // shown as the label of a lookup item, edited with a drop down
+        Choice, // shown as the label of a lookup item, edited by picking from a menu
     };
 
     std::wstring sHeader;
@@ -149,6 +149,8 @@ private:
 
     void RowChanged(gsl::index nIndex);
     void Reset();
+    void OnItemActivated(wxDataViewEvent& event);
+    void ShowChoiceMenu(gsl::index nIndex, const GridColumn& pColumn);
     bool ScheduleResetIfNotMainThread();
     void SyncSelectionFromItems();
     void OnSelectionChanged();
@@ -163,6 +165,8 @@ private:
     std::function<void(gsl::index)> m_fContextMenu;
     int m_nUpdateDepth = 0;
     bool m_bResetPending = false;
+    std::vector<gsl::index> m_vChangedDuringUpdate;
+    bool m_bSelectionChangedDuringUpdate = false;
     bool m_bSyncingSelection = false;
     std::atomic<bool> m_bResetScheduled{false};
 };

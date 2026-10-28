@@ -4,6 +4,7 @@
 #include "ui/wx/WxBinding.hh"
 
 #include <wx/app.h>
+#include <wx/menu.h>
 #include <wx/settings.h>
 #include <wx/thread.h>
 
@@ -273,10 +274,7 @@ Grid::Grid(wxWindow* pParent, long nStyle) : wxDataViewCtrl(pParent, wxID_ANY, w
         if (m_fContextMenu && event.GetItem().IsOk())
             m_fContextMenu(gsl::narrow_cast<gsl::index>(m_pModel->GetRow(event.GetItem())));
     });
-    Bind(wxEVT_DATAVIEW_ITEM_ACTIVATED, [this](wxDataViewEvent& event) {
-        if (m_fDoubleClick && event.GetItem().IsOk())
-            m_fDoubleClick(gsl::narrow_cast<gsl::index>(m_pModel->GetRow(event.GetItem())));
-    });
+    Bind(wxEVT_DATAVIEW_ITEM_ACTIVATED, &Grid::OnItemActivated, this);
 }
 
 Grid::~Grid()
@@ -307,13 +305,10 @@ void Grid::AddColumn(GridColumn&& pColumn)
             break;
 
         case GridColumn::Kind::Choice:
-        {
-            wxArrayString vLabels;
-            for (const auto& pChoice : *pColumn.pChoices)
-                vLabels.Add(ToWx(pChoice.GetLabel()));
-            pRenderer = new wxDataViewChoiceRenderer(vLabels, wxDATAVIEW_CELL_EDITABLE, pColumn.nAlignment);
+            // drawn as text: native pop-up button cells are expensive to draw (macOS renders each one through
+            // SwiftUI), and rows with changing values are redrawn every frame. Activating the cell shows a menu.
+            pRenderer = new wxDataViewTextRenderer("string", wxDATAVIEW_CELL_INERT, pColumn.nAlignment);
             break;
-        }
 
         default:
             pRenderer = new wxDataViewTextRenderer("string",
@@ -334,6 +329,60 @@ void Grid::BindItems(ViewModelCollectionBase& vmItems)
     m_pItems = &vmItems;
     m_pItems->AddNotifyTarget(*this);
     Reset();
+}
+
+void Grid::OnItemActivated(wxDataViewEvent& event)
+{
+    if (!event.GetItem().IsOk() || m_pItems == nullptr)
+        return;
+
+    const auto nIndex = gsl::narrow_cast<gsl::index>(m_pModel->GetRow(event.GetItem()));
+    const auto* pDataViewColumn = event.GetDataViewColumn();
+    if (pDataViewColumn != nullptr)
+    {
+        const auto nColumn = pDataViewColumn->GetModelColumn();
+        if (nColumn < m_vColumns.size())
+        {
+            const auto& pColumn = m_vColumns.at(nColumn);
+            if (pColumn.nKind == GridColumn::Kind::Choice &&
+                (!pColumn.fIsEditable || pColumn.fIsEditable(*m_pItems, nIndex)))
+            {
+                ShowChoiceMenu(nIndex, pColumn);
+                return;
+            }
+        }
+    }
+
+    if (m_fDoubleClick)
+        m_fDoubleClick(nIndex);
+}
+
+void Grid::ShowChoiceMenu(gsl::index nIndex, const GridColumn& pColumn)
+{
+    const int nCurrent = m_pItems->GetItemValue(nIndex, *pColumn.pChoiceProperty);
+
+    wxMenu pMenu;
+    std::vector<int> vIds;
+    for (const auto& pChoice : *pColumn.pChoices)
+    {
+        const int nMenuId = wxID_HIGHEST + 1 + gsl::narrow_cast<int>(vIds.size());
+        pMenu.AppendCheckItem(nMenuId, ToWx(pChoice.GetLabel()))->Check(pChoice.GetId() == nCurrent);
+        vIds.push_back(pChoice.GetId());
+    }
+
+    const int nSelection = GetPopupMenuSelectionFromUser(pMenu);
+    const int nChoice = nSelection - (wxID_HIGHEST + 1);
+    if (nChoice < 0 || gsl::narrow_cast<size_t>(nChoice) >= vIds.size() || m_pItems == nullptr ||
+        nIndex >= gsl::narrow_cast<gsl::index>(m_pItems->Count()))
+    {
+        return;
+    }
+
+    const int nValue = vIds.at(gsl::narrow_cast<size_t>(nChoice));
+    if (pColumn.fSetChoice)
+        pColumn.fSetChoice(*m_pItems, nIndex, nValue);
+    else
+        m_pItems->SetItemValue(nIndex, *pColumn.pChoiceProperty, nValue);
 }
 
 gsl::index Grid::GetSelectedIndex() const
@@ -360,6 +409,7 @@ void Grid::EnsureIndexVisible(gsl::index nIndex)
 void Grid::Reset()
 {
     m_bResetPending = false;
+    m_vChangedDuringUpdate.clear();
     m_bSyncingSelection = true;
     m_pModel->Reset(m_pItems ? gsl::narrow_cast<unsigned int>(m_pItems->Count()) : 0);
     m_bSyncingSelection = false;
@@ -368,8 +418,16 @@ void Grid::Reset()
 
 void Grid::RowChanged(gsl::index nIndex)
 {
-    if (m_nUpdateDepth > 0 || m_bResetPending)
+    if (m_bResetPending)
         return;
+
+    if (m_nUpdateDepth > 0)
+    {
+        // redrawn when the update ends
+        if (m_vChangedDuringUpdate.empty() || m_vChangedDuringUpdate.back() != nIndex)
+            m_vChangedDuringUpdate.push_back(nIndex);
+        return;
+    }
 
     if (nIndex >= 0 && gsl::narrow_cast<unsigned int>(nIndex) < m_pModel->GetCount())
         m_pModel->RowChanged(gsl::narrow_cast<unsigned int>(nIndex));
@@ -462,7 +520,9 @@ void Grid::OnViewModelBoolValueChanged(gsl::index nIndex, const BoolModelPropert
 
     if (m_pIsSelectedProperty && args.Property == *m_pIsSelectedProperty)
     {
-        if (!m_bSyncingSelection && m_nUpdateDepth == 0 && !m_bResetPending)
+        if (m_nUpdateDepth > 0)
+            m_bSelectionChangedDuringUpdate = true;
+        else if (!m_bSyncingSelection && !m_bResetPending)
         {
             m_bSyncingSelection = true;
             const auto pItem = m_pModel->GetItem(gsl::narrow_cast<unsigned int>(nIndex));
@@ -535,10 +595,24 @@ void Grid::OnEndViewModelCollectionUpdate()
 
     if (m_nUpdateDepth > 0 && --m_nUpdateDepth == 0)
     {
+        std::vector<gsl::index> vChanged;
+        vChanged.swap(m_vChangedDuringUpdate);
+
         if (m_bResetPending)
+        {
             Reset();
+        }
         else
-            RefreshItems();
+        {
+            std::sort(vChanged.begin(), vChanged.end());
+            vChanged.erase(std::unique(vChanged.begin(), vChanged.end()), vChanged.end());
+            for (const auto nIndex : vChanged)
+                RowChanged(nIndex);
+
+            if (m_bSelectionChangedDuringUpdate)
+                SyncSelectionFromItems();
+        }
+        m_bSelectionChangedDuringUpdate = false;
     }
 }
 
