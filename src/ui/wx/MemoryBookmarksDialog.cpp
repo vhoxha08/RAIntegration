@@ -41,6 +41,7 @@ MemoryBookmarksDialog::MemoryBookmarksDialog(MemoryBookmarksViewModel& vmMemoryB
     auto pDescription = GridColumn::Text(L"Description", MemoryWatchViewModel::DescriptionProperty, 180, true);
     m_pGrid->AddColumn(std::move(pDescription));
     auto pAddress = MemoryWatchAddressColumn(L"Address", MemoryWatchViewModel::AddressProperty);
+    pAddress.fGetTooltip = GridColumn::TooltipFrom(MemoryWatchViewModel::RealNoteProperty);
     m_pGrid->AddColumn(std::move(pAddress));
     auto pSize = GridColumn::Lookup(L"Size", MemoryWatchViewModel::SizeProperty, vmList.Sizes(), 96, true);
     m_pGrid->AddColumn(std::move(pSize));

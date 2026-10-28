@@ -88,6 +88,15 @@ AssetListDialog::AssetListDialog(AssetListViewModel& vmAssetList) :
         }
     });
     pType.nAlignment = wxALIGN_CENTER;
+    pType.fGetTooltip = [](const ViewModelCollectionBase& vItems, gsl::index nIndex) {
+        switch (GetType(vItems, nIndex))
+        {
+            case AssetType::Achievement: return std::wstring(L"Achievement");
+            case AssetType::Leaderboard: return std::wstring(L"Leaderboard");
+            case AssetType::RichPresence: return std::wstring(L"Rich Presence");
+            default: return std::to_wstring(ra::etoi(GetType(vItems, nIndex)));
+        }
+    };
     m_pAssets->AddColumn(std::move(pType));
     auto pId = GridColumn::Custom(L"ID", 60, [](const ViewModelCollectionBase& vItems, gsl::index nIndex) {
         const auto nId = vItems.GetItemValue(nIndex, AssetSummary::IdProperty);

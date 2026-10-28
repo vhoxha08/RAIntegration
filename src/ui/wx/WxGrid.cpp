@@ -101,6 +101,35 @@ GridColumn GridColumn::BoolText(const std::wstring& sHeader, const BoolModelProp
     return pColumn;
 }
 
+std::function<std::wstring(const ViewModelCollectionBase&, gsl::index)> GridColumn::TooltipFrom(
+    const StringModelProperty& pProperty)
+{
+    return [&pProperty](const ViewModelCollectionBase& vItems, gsl::index nIndex) {
+        std::wstring sTooltip = vItems.GetItemValue(nIndex, pProperty);
+
+        // like the Win32 grid: show the first 20 lines of long texts
+        size_t nCount = 0;
+        size_t nTruncateIndex = 0;
+        auto nScan = sTooltip.find('\n');
+        while (nScan != std::wstring::npos)
+        {
+            if (++nCount == 20)
+            {
+                nTruncateIndex = nScan;
+            }
+            else if (nCount == 25)
+            {
+                sTooltip.resize(nTruncateIndex);
+                sTooltip.append(L"\n...");
+                break;
+            }
+            nScan = sTooltip.find('\n', nScan + 1);
+        }
+
+        return sTooltip;
+    };
+}
+
 GridColumn GridColumn::Custom(const std::wstring& sHeader, int nWidth,
                               std::function<std::wstring(const ViewModelCollectionBase&, gsl::index)> fGetText,
                               std::function<bool(ViewModelCollectionBase&, gsl::index, const std::wstring&)> fSetText)
@@ -269,6 +298,20 @@ Grid::Grid(wxWindow* pParent, long nStyle) :
 {
     Bind(wxEVT_CHAR_HOOK, &Grid::OnCharHook, this);
 
+    // tooltips per cell: the native list has none, so follow the mouse and set the control's tooltip
+    for (wxWindow* pWindow : {static_cast<wxWindow*>(this), GetMainWindow()})
+    {
+        if (pWindow == nullptr)
+            continue;
+        pWindow->Bind(wxEVT_MOTION, &Grid::OnMouseMove, this);
+        pWindow->Bind(wxEVT_LEAVE_WINDOW, [this](wxMouseEvent& event) {
+            m_nTooltipRow = -1;
+            m_nTooltipColumn = -1;
+            UnsetToolTip();
+            event.Skip();
+        });
+    }
+
     m_pModel = new Model(*this);
     AssociateModel(m_pModel);
     m_pModel->DecRef(); // the control holds the reference
@@ -387,6 +430,48 @@ void Grid::ShowChoiceMenu(gsl::index nIndex, const GridColumn& pColumn)
         pColumn.fSetChoice(*m_pItems, nIndex, nValue);
     else
         m_pItems->SetItemValue(nIndex, *pColumn.pChoiceProperty, nValue);
+}
+
+void Grid::OnMouseMove(wxMouseEvent& event)
+{
+    event.Skip();
+    if (m_pItems == nullptr)
+        return;
+
+    wxDataViewItem pItem;
+    wxDataViewColumn* pColumn = nullptr;
+    wxPoint pPosition = event.GetPosition();
+    if (event.GetEventObject() != this)
+        pPosition = ScreenToClient(static_cast<wxWindow*>(event.GetEventObject())->ClientToScreen(pPosition));
+    HitTest(pPosition, pItem, pColumn);
+
+    gsl::index nRow = -1;
+    int nColumn = -1;
+    if (pItem.IsOk() && pColumn != nullptr)
+    {
+        nRow = gsl::narrow_cast<gsl::index>(m_pModel->GetRow(pItem));
+        nColumn = gsl::narrow_cast<int>(pColumn->GetModelColumn());
+    }
+
+    if (nRow == m_nTooltipRow && nColumn == m_nTooltipColumn)
+        return;
+
+    m_nTooltipRow = nRow;
+    m_nTooltipColumn = nColumn;
+
+    std::wstring sTooltip;
+    if (nRow >= 0 && nColumn >= 0 && nColumn < gsl::narrow_cast<int>(m_vColumns.size()) &&
+        nRow < gsl::narrow_cast<gsl::index>(m_pItems->Count()))
+    {
+        const auto& pGridColumn = m_vColumns.at(gsl::narrow_cast<size_t>(nColumn));
+        if (pGridColumn.fGetTooltip)
+            sTooltip = pGridColumn.fGetTooltip(*m_pItems, nRow);
+    }
+
+    if (sTooltip.empty())
+        UnsetToolTip();
+    else
+        SetToolTip(ToWx(sTooltip));
 }
 
 void Grid::OnCharHook(wxKeyEvent& event)

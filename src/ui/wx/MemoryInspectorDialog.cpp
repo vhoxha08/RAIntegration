@@ -262,6 +262,36 @@ wxSizer* MemoryInspectorDialog::CreateResultsControls()
     m_pResults->AppendTextColumn("Description", 2, wxDATAVIEW_CELL_INERT, FromDIP(240));
     m_pResults->SetMinSize(wxSize(-1, m_pResults->GetCharHeight() * VISIBLE_RESULT_ROWS * 3 / 2));
     m_pResults->Bind(wxEVT_DATAVIEW_SELECTION_CHANGED, [this](wxDataViewEvent&) { OnResultsSelectionChanged(); });
+    // the value column explains the current, last filtered and initial values (like the Win32 list)
+    for (wxWindow* pWindow : {static_cast<wxWindow*>(m_pResults), m_pResults->GetMainWindow()})
+    {
+        if (pWindow == nullptr)
+            continue;
+        pWindow->Bind(wxEVT_MOTION, [this, pWindow](wxMouseEvent& event) {
+            event.Skip();
+            const wxPoint pPosition = m_pResults->ScreenToClient(pWindow->ClientToScreen(event.GetPosition()));
+            wxDataViewItem pItem;
+            wxDataViewColumn* pColumn = nullptr;
+            m_pResults->HitTest(pPosition, pItem, pColumn);
+
+            std::wstring sTooltip;
+            if (pItem.IsOk() && pColumn != nullptr && pColumn->GetModelColumn() == 1)
+            {
+                if (const auto* pRow = m_pResultsModel->GetVisibleRow(m_pResultsModel->GetRow(pItem)))
+                    sTooltip = m_vmMemoryInspector.Search().GetTooltip(*pRow);
+            }
+
+            const wxString sNewTooltip = ToWx(sTooltip);
+            if (m_pResults->GetToolTipText() != sNewTooltip)
+            {
+                if (sTooltip.empty())
+                    m_pResults->UnsetToolTip();
+                else
+                    m_pResults->SetToolTip(sNewTooltip);
+            }
+        });
+    }
+
     m_pResults->Bind(wxEVT_CHAR_HOOK, [this](wxKeyEvent& event) {
         // Ctrl/Cmd+A selects all results, Ctrl/Cmd+D none (like the Win32 list)
         if (event.ControlDown() && !event.AltDown() && !event.ShiftDown() &&

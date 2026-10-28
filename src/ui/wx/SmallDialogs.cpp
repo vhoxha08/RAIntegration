@@ -229,9 +229,13 @@ TriggerSummaryDialog::TriggerSummaryDialog(TriggerSummaryViewModel& vmTriggerSum
     auto pIndices = GridColumn::Text(L"Indices", Clause::IndicesProperty, 80);
     pIndices.nAlignment = wxALIGN_RIGHT;
     pClauses->AddColumn(std::move(pIndices));
-    pClauses->AddColumn(GridColumn::Text(L"Reference", Clause::ReferenceProperty, 240));
+    auto pReference = GridColumn::Text(L"Reference", Clause::ReferenceProperty, 240);
+    pReference.fGetTooltip = GridColumn::TooltipFrom(Clause::ReferenceProperty);
+    pClauses->AddColumn(std::move(pReference));
     pClauses->AddColumn(GridColumn::Text(L"Operation", Clause::OperationProperty, 140));
-    pClauses->AddColumn(GridColumn::Text(L"Target", Clause::TargetProperty, 240));
+    auto pTarget = GridColumn::Text(L"Target", Clause::TargetProperty, 240);
+    pTarget.fGetTooltip = GridColumn::TooltipFrom(Clause::TargetProperty);
+    pClauses->AddColumn(std::move(pTarget));
     pClauses->AddColumn(GridColumn::Text(L"Tally", Clause::TallyProperty, 60));
     pClauses->BindRowColor(Clause::ColorProperty);
     pClauses->BindItems(vmTriggerSummary.Clauses());

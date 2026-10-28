@@ -305,6 +305,12 @@ wxSizer* AssetEditorDialog::CreateTrigger()
             return fIsVisible(vConditions, nIndex) ? vConditions.GetItemValue(nIndex, pProperty) : std::wstring();
         };
         pColumn.fIsEditable = fIsVisible;
+        pColumn.fGetTooltip = [&pProperty, fIsVisible](const ViewModelCollectionBase& vConditions, gsl::index nIndex) {
+            if (!fIsVisible(vConditions, nIndex))
+                return std::wstring();
+            const auto* vmCondition = dynamic_cast<const TriggerConditionViewModel*>(vConditions.GetViewModelAt(nIndex));
+            return vmCondition ? vmCondition->GetTooltip(pProperty) : std::wstring();
+        };
         pColumn.fSetText = [&pProperty, &pTypeProperty](ViewModelCollectionBase& vConditions, gsl::index nIndex,
                                                          const std::wstring& sValue) {
             using OperandType = ra::data::Requirement::OperandType;
@@ -345,7 +351,17 @@ wxSizer* AssetEditorDialog::CreateTrigger()
     };
 
     m_pConditions->AddColumn(Lookup(L"Flag", Condition::TypeProperty, vmTrigger.ConditionTypes(), 110, nullptr));
-    m_pConditions->AddColumn(Lookup(L"Type", Condition::SourceTypeProperty, vmTrigger.OperandTypes(), 70, nullptr));
+    // the conditions explain their operands (i.e. the code note of an address) as tooltips
+    auto ConditionTooltip = [](const auto& pProperty) {
+        return [&pProperty](const ViewModelCollectionBase& vConditions, gsl::index nIndex) {
+            const auto* vmCondition = dynamic_cast<const TriggerConditionViewModel*>(vConditions.GetViewModelAt(nIndex));
+            return vmCondition ? vmCondition->GetTooltip(pProperty) : std::wstring();
+        };
+    };
+
+    auto pSourceType = Lookup(L"Type", Condition::SourceTypeProperty, vmTrigger.OperandTypes(), 70, nullptr);
+    pSourceType.fGetTooltip = ConditionTooltip(Condition::SourceTypeProperty);
+    m_pConditions->AddColumn(std::move(pSourceType));
     m_pConditions->AddColumn(Lookup(L"Size", Condition::SourceSizeProperty, vmTrigger.OperandSizes(), 96,
                                     &Condition::HasSourceSizeProperty));
     m_pConditions->AddColumn(Value(L"Memory", Condition::SourceValueProperty, Condition::SourceTypeProperty,
@@ -353,8 +369,14 @@ wxSizer* AssetEditorDialog::CreateTrigger()
                                        return vConditions.GetItemValue(nIndex, Condition::HasSourceValueProperty);
                                    }));
     m_pConditions->AddColumn(Lookup(L"Cmp", Condition::OperatorProperty, vmTrigger.OperatorTypes(), 50, nullptr));
-    m_pConditions->AddColumn(Lookup(L"Type", Condition::TargetTypeProperty, vmTrigger.OperandTypes(), 70,
-                                    &Condition::HasTargetProperty));
+    auto pTargetType = Lookup(L"Type", Condition::TargetTypeProperty, vmTrigger.OperandTypes(), 70,
+                              &Condition::HasTargetProperty);
+    pTargetType.fGetTooltip = [ConditionTooltip](const ViewModelCollectionBase& vConditions, gsl::index nIndex) {
+        if (!vConditions.GetItemValue(nIndex, Condition::HasTargetProperty))
+            return std::wstring();
+        return ConditionTooltip(Condition::TargetTypeProperty)(vConditions, nIndex);
+    };
+    m_pConditions->AddColumn(std::move(pTargetType));
     m_pConditions->AddColumn(Lookup(L"Size", Condition::TargetSizeProperty, vmTrigger.OperandSizes(), 96,
                                     &Condition::HasTargetSizeProperty));
     m_pConditions->AddColumn(Value(L"Mem/Val", Condition::TargetValueProperty, Condition::TargetTypeProperty,
@@ -392,6 +414,12 @@ wxSizer* AssetEditorDialog::CreateTrigger()
     pHits.fIsEditable = [](const ViewModelCollectionBase& vConditions, gsl::index nIndex) {
         return vConditions.GetItemValue(nIndex, Condition::HasHitsProperty) &&
                vConditions.GetItemValue(nIndex, Condition::CanEditHitsProperty);
+    };
+    pHits.fGetTooltip = [&vmTrigger](const ViewModelCollectionBase&, gsl::index nIndex) {
+        std::wstring sTooltip;
+        if (!TriggerViewModel::BuildHitChainTooltip(sTooltip, vmTrigger.Conditions(), nIndex))
+            sTooltip.clear();
+        return sTooltip;
     };
     m_pConditions->AddColumn(std::move(pHits));
 

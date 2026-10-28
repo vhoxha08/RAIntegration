@@ -221,6 +221,42 @@ void RunStep(const Step& pStep)
             }
         }
     }
+    else if (pStep.sAction == "hover" || pStep.sAction == "tooltip")
+    {
+        // "hover x y <title>": moves the mouse to (x, y) of the window's table (points, from its top left)
+        // "tooltip <title>": prints the tooltip of the window's table (or the view around it)
+        int nX = 0, nY = 0, nConsumed = 0;
+        if (pStep.sAction == "hover" && sscanf(pStep.sArgs.c_str(), "%d %d %n", &nX, &nY, &nConsumed) < 2)
+            return;
+        NSString* sPrefix = [NSString stringWithUTF8String:pStep.sArgs.substr(static_cast<size_t>(nConsumed)).c_str()];
+        for (NSWindow* pWindow in [NSApp windows])
+        {
+            NSTableView* pTable = ([pWindow isVisible] && [[pWindow title] hasPrefix:sPrefix])
+                                      ? FindTable([pWindow contentView]) : nil;
+            if (pTable == nil)
+                continue;
+
+            if (pStep.sAction == "hover")
+            {
+                const NSPoint pInWindow = [pTable convertPoint:NSMakePoint(nX, nY) toView:nil];
+                NSEvent* pEvent = [NSEvent mouseEventWithType:NSEventTypeMouseMoved location:pInWindow modifierFlags:0
+                                                    timestamp:0 windowNumber:[pWindow windowNumber] context:nil
+                                                  eventNumber:0 clickCount:0 pressure:0];
+                [pWindow sendEvent:pEvent];
+                [pTable mouseMoved:pEvent];
+                fprintf(stderr, "RA_WX_TEST hovered %d,%d in '%s'\n", nX, nY, [[pWindow title] UTF8String]);
+            }
+            else
+            {
+                NSString* sTip = nil;
+                for (NSView* pView = pTable; pView != nil && sTip == nil; pView = [pView superview])
+                    sTip = [pView toolTip];
+                fprintf(stderr, "RA_WX_TEST tooltip in '%s': %s\n", [[pWindow title] UTF8String],
+                        sTip ? [sTip UTF8String] : "(none)");
+            }
+            break;
+        }
+    }
     else if (pStep.sAction == "list")
     {
         for (NSWindow* pWindow in [NSApp windows])

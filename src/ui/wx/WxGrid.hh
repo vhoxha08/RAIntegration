@@ -46,8 +46,9 @@ struct GridColumn
     const ra::ui::viewmodels::LookupItemViewModelCollection* pChoices = nullptr;
     std::function<void(ViewModelCollectionBase&, gsl::index, int)> fSetChoice; // optional: instead of the property
 
-    // optional: whether a row can be edited, text color per row (ARGB, alpha 0 = default)
+    // optional: whether a row can be edited, text color per row (ARGB, alpha 0 = default), tooltip
     std::function<bool(const ViewModelCollectionBase&, gsl::index)> fIsEditable;
+    std::function<std::wstring(const ViewModelCollectionBase&, gsl::index)> fGetTooltip;
     const IntModelProperty* pTextColorProperty = nullptr;
 
     bool IsReadOnly() const noexcept
@@ -66,6 +67,12 @@ struct GridColumn
     static GridColumn Check(const std::wstring& sHeader, const BoolModelProperty& pProperty, int nWidth = 24);
     static GridColumn BoolText(const std::wstring& sHeader, const BoolModelProperty& pProperty,
                                const std::wstring& sTrue, const std::wstring& sFalse, int nWidth);
+    /// <summary>
+    /// Tooltip showing a (possibly multi-line) text property, at most 20 lines (GridColumnBinding::BindTooltip).
+    /// </summary>
+    static std::function<std::wstring(const ViewModelCollectionBase&, gsl::index)> TooltipFrom(
+        const StringModelProperty& pProperty);
+
     static GridColumn Custom(const std::wstring& sHeader, int nWidth,
                              std::function<std::wstring(const ViewModelCollectionBase&, gsl::index)> fGetText,
                              std::function<bool(ViewModelCollectionBase&, gsl::index, const std::wstring&)> fSetText = nullptr);
@@ -163,6 +170,7 @@ private:
     void OnItemActivated(wxDataViewEvent& event);
     void ShowChoiceMenu(gsl::index nIndex, const GridColumn& pColumn);
     void OnCharHook(wxKeyEvent& event);
+    void OnMouseMove(wxMouseEvent& event);
     bool ScheduleResetIfNotMainThread();
     void SyncSelectionFromItems();
     void OnSelectionChanged();
@@ -178,6 +186,8 @@ private:
     std::function<void()> m_fCopy;
     std::function<void()> m_fPaste;
     int m_nPrimaryEditColumn = -1;
+    gsl::index m_nTooltipRow = -1;
+    int m_nTooltipColumn = -1;
     long m_nStyle = 0;
     int m_nUpdateDepth = 0;
     bool m_bResetPending = false;
