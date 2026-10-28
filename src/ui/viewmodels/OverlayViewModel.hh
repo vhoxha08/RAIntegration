@@ -157,7 +157,13 @@ private:
     gsl::index m_nSelectedPage = 0;
 
     double m_fAnimationProgress = -1.0;
+#ifdef _WIN32
     static _CONSTANT_VAR INOUT_TIME = 0.4;
+#else
+    // the overlay is drawn over the game in one piece: redrawing the whole of it for each step of the slide is slow
+    // (and the slide doesn't add much), so it shows and hides right away
+    static _CONSTANT_VAR INOUT_TIME = 0.0;
+#endif
 };
 
 } // namespace viewmodels
