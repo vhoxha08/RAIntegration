@@ -2,6 +2,7 @@
 #define RA_UI_MEMORYVIEWERVIEWMODEL_H
 #pragma once
 
+#include <atomic>
 #include "context/IEmulatorMemoryContext.hh"
 
 #include "data/context/EmulatorContext.hh"
@@ -209,7 +210,10 @@ protected:
     static constexpr int REDRAW_ADDRESSES = 2;
     static constexpr int REDRAW_HEADERS = 4;
     static constexpr int REDRAW_ALL = REDRAW_MEMORY | REDRAW_ADDRESSES | REDRAW_HEADERS;
-    int m_nNeedsRedraw = REDRAW_ALL;
+    // set by the emulator thread (DoFrame, memory changes), handled by the UI thread (UpdateRenderImage)
+    std::atomic<int> m_nNeedsRedraw{REDRAW_ALL};
+    // the surface is replaced by the UI thread, which may be drawing with it when this is requested
+    std::atomic<bool> m_bResetSurface{false};
 
     static constexpr int MaxLines = 128;
 

@@ -1271,7 +1271,7 @@ void MemoryViewerViewModel::BuildFontSurface()
 
 void MemoryViewerViewModel::ResetSurface() noexcept
 {
-    m_pSurface.reset();
+    m_bResetSurface = true;
     m_nNeedsRedraw = REDRAW_ALL;
 }
 
@@ -1280,11 +1280,12 @@ void MemoryViewerViewModel::ResetSurface() noexcept
 
 void MemoryViewerViewModel::UpdateRenderImage()
 {
-    if (m_nNeedsRedraw == 0)
+    int nNeedsRedraw = m_nNeedsRedraw.exchange(0);
+    if (nNeedsRedraw == 0)
         return;
 
-    int nNeedsRedraw = m_nNeedsRedraw;
-    m_nNeedsRedraw = 0;
+    if (m_bResetSurface.exchange(false))
+        m_pSurface.reset();
 
     if (m_pSurface == nullptr)
     {
