@@ -27,47 +27,40 @@ public:
     template<typename T>
     void Append(const T& arg)
     {
-        if (m_bPrepareWide)
+        // (strings are kept as they are; not specializations: GCC doesn't take them inside a class)
+        if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, std::wstring>)
+        {
+            m_vPending.emplace_back(arg.c_str(), arg.length());
+        }
+        else if constexpr (std::is_same_v<T, std::string_view> || std::is_same_v<T, std::wstring_view>)
+        {
+            m_vPending.emplace_back(arg.data(), arg.length());
+        }
+        else if constexpr (std::is_same_v<T, const char*>)
+        {
+            const auto nLength = strlen(arg);
+            if (nLength > 0)
+                Append(std::string_view(arg, nLength));
+        }
+        else if constexpr (std::is_same_v<T, const wchar_t*>)
+        {
+            const auto nLength = wcslen(arg);
+            if (nLength > 0)
+                Append(std::wstring_view(arg, nLength));
+        }
+        else if (m_bPrepareWide)
+        {
             m_vPending.emplace_back(std::wstring{ ToWString(arg) });
+        }
         else
+        {
             m_vPending.emplace_back(std::string{ ToAString(arg) });
+        }
     }
 
-    /// <summary>
-    /// Appends a UTF-8 string value.
-    /// </summary>
-    template<>
-    void Append(const std::string& arg)
-    {
-        m_vPending.emplace_back(arg.c_str(), arg.length());
-    }
 
-    /// <summary>
-    /// Appends a Unicode string value.
-    /// </summary>
-    template<>
-    void Append(const std::wstring& arg)
-    {
-        m_vPending.emplace_back(arg.c_str(), arg.length());
-    }
 
-    /// <summary>
-    /// Appends a UTF-8 string value.
-    /// </summary>
-    template<>
-    void Append(const std::string_view& arg)
-    {
-        m_vPending.emplace_back(arg.data(), arg.length());
-    }
 
-    /// <summary>
-    /// Appends a Unicode string value.
-    /// </summary>
-    template<>
-    void Append(const std::wstring_view& arg)
-    {
-        m_vPending.emplace_back(arg.data(), arg.length());
-    }
 
     /// <summary>
     /// Appends a UTF-8 string value.
@@ -85,27 +78,7 @@ public:
         m_vPending.emplace_back(std::move(arg));
     }
 
-    /// <summary>
-    /// Appends a UTF-8 string value.
-    /// </summary>
-    template<>
-    void Append(const char* const& arg)
-    {
-        const auto nLength = strlen(arg);
-        if (nLength > 0)
-            Append(std::string_view(arg, nLength));
-    }
 
-    /// <summary>
-    /// Appends a Unicode string value.
-    /// </summary>
-    template<>
-    void Append(const wchar_t* const& arg)
-    {
-        const auto nLength = wcslen(arg);
-        if (nLength > 0)
-            Append(std::wstring_view(arg, nLength));
-    }
 
     /// <summary>
     /// Appends a non-string value, followed by additional items.
@@ -408,7 +381,22 @@ private:
     template<typename T>
     _NODISCARD inline const std::string ToAString(_In_ const T& value)
     {
-        if constexpr (std::is_arithmetic_v<T>)
+        // (strings and characters first; not specializations: GCC doesn't take them inside a class)
+        if constexpr (std::is_same_v<T, std::string>)
+            return value;
+        else if constexpr (std::is_same_v<T, std::wstring>)
+            return Narrow(value);
+        else if constexpr (std::is_same_v<T, std::string_view>)
+            return std::string(value);
+        else if constexpr (std::is_same_v<T, std::wstring_view>)
+            return Narrow(std::wstring(value));
+        else if constexpr (std::is_same_v<T, const wchar_t*>)
+            return Narrow(value);
+        else if constexpr (std::is_same_v<T, const char*> || std::is_same_v<T, char*>)
+            return std::string(value);
+        else if constexpr (std::is_same_v<T, char>)
+            return std::string(1, value);
+        else if constexpr (std::is_arithmetic_v<T>)
         {
             if constexpr (std::is_same_v<T, wchar_t>)
             {
@@ -434,53 +422,21 @@ private:
         }
     }
 
-    template<>
-    _NODISCARD inline const std::string ToAString(_In_ const std::string& value)
-    {
-        return value;
-    }
 
-    template<>
-    _NODISCARD inline const std::string ToAString(_In_ const std::wstring& value)
-    {
-        return Narrow(value);
-    }
 
-    template<>
-    _NODISCARD inline const std::string ToAString(_In_ const std::string_view& value)
-    {
-        return std::string(value);
-    }
 
-    template<>
-    _NODISCARD inline const std::string ToAString(_In_ const std::wstring_view& value)
-    {
-        return Narrow(std::wstring(value));
-    }
 
-    template<>
-    _NODISCARD inline const std::string ToAString(_In_ const wchar_t* const& value)
-    {
-        return Narrow(value);
-    }
 
-    template<>
-    _NODISCARD inline const std::string ToAString(_In_ const char* const& value)
-    {
-        return std::string(value);
-    }
 
-    template<>
-    _NODISCARD inline const std::string ToAString(_In_ char* const& value)
-    {
-        return std::string(value);
-    }
 
-    template<>
-    _NODISCARD inline const std::string ToAString(_In_ const char& value)
-    {
-        return std::string(1, value);
-    }
+
+
+
+
+
+
+
+
 
     // literal strings can't be passed by reference, so won't call the templated methods
     _NODISCARD inline const std::string ToAString(_In_ const char* value) { return std::string(value); }
@@ -491,7 +447,22 @@ private:
     template<typename T>
     _NODISCARD inline const std::wstring ToWString(_In_ const T& value)
     {
-        if constexpr (std::is_arithmetic_v<T>)
+        // (strings and characters first; not specializations: GCC doesn't take them inside a class)
+        if constexpr (std::is_same_v<T, std::wstring>)
+            return value;
+        else if constexpr (std::is_same_v<T, std::string>)
+            return Widen(value);
+        else if constexpr (std::is_same_v<T, std::wstring_view>)
+            return std::wstring(value);
+        else if constexpr (std::is_same_v<T, std::string_view>)
+            return Widen(std::string(value));
+        else if constexpr (std::is_same_v<T, const wchar_t*>)
+            return std::wstring(value);
+        else if constexpr (std::is_same_v<T, const char*> || std::is_same_v<T, char*>)
+            return Widen(value);
+        else if constexpr (std::is_same_v<T, char>)
+            return std::wstring(1, value);
+        else if constexpr (std::is_arithmetic_v<T>)
         {
             if constexpr (std::is_same_v<T, char>)
             {
@@ -516,53 +487,21 @@ private:
         }
     }
 
-    template<>
-    _NODISCARD inline const std::wstring ToWString(_In_ const std::wstring& value)
-    {
-        return value;
-    }
 
-    template<>
-    _NODISCARD inline const std::wstring ToWString(_In_ const std::string& value)
-    {
-        return Widen(value);
-    }
 
-    template<>
-    _NODISCARD inline const std::wstring ToWString(_In_ const std::wstring_view& value)
-    {
-        return std::wstring(value);
-    }
 
-    template<>
-    _NODISCARD inline const std::wstring ToWString(_In_ const std::string_view& value)
-    {
-        return Widen(std::string(value));
-    }
 
-    template<>
-    _NODISCARD inline const std::wstring ToWString(_In_ const wchar_t* const& value)
-    {
-        return std::wstring(value);
-    }
 
-    template<>
-    _NODISCARD inline const std::wstring ToWString(_In_ const char* const& value)
-    {
-        return Widen(value);
-    }
 
-    template<>
-    _NODISCARD inline const std::wstring ToWString(_In_ char* const& value)
-    {
-        return Widen(value);
-    }
 
-    template<>
-    _NODISCARD inline const std::wstring ToWString(_In_ const char& value)
-    {
-        return std::wstring(1, value);
-    }
+
+
+
+
+
+
+
+
 
     // literal strings can't be passed by reference, so won't call the templated methods
     _NODISCARD inline const std::wstring ToWString(_In_ const char* value) { return Widen(value); }

@@ -5,6 +5,8 @@
 #include "GSL.hh"
 #include "TypeTraits.hh"
 
+#include <cmath>
+
 /*
    For most of these functions you won't have to specify the template argument
    as it will be auto-deduced unless stated otherwise.

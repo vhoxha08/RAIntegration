@@ -175,7 +175,8 @@ unsigned int UnknownGameViewModel::GetPreviousAssociation(const std::wstring& sH
     return 0;
 }
 
-static constexpr unsigned GenerateMask(const std::wstring& sHash, ConsoleID nConsoleId)
+// (not constexpr: std::wstring isn't, before C++20, and GCC 11 refuses it)
+static unsigned GenerateMask(const std::wstring& sHash, ConsoleID nConsoleId)
 {
     // use longs to multiply to something more than 32-bits, then truncated and invert several bits
     return gsl::narrow_cast<unsigned>(

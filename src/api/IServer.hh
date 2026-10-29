@@ -18,14 +18,14 @@ public:
     virtual const char* Name() const noexcept = 0;
 
     // === game functions ===
-    virtual ResolveHash::Response ResolveHash(const ResolveHash::Request& request) = 0;
-    virtual UpdateAchievement::Response UpdateAchievement(const UpdateAchievement::Request& request) = 0;
-    virtual FetchAchievementInfo::Response FetchAchievementInfo(const FetchAchievementInfo::Request& request) = 0;
-    virtual FetchLeaderboardInfo::Response FetchLeaderboardInfo(const FetchLeaderboardInfo::Request& request) = 0;
-    virtual UpdateRichPresence::Response UpdateRichPresence(const UpdateRichPresence::Request& request) = 0;
+    virtual api::ResolveHash::Response ResolveHash(const api::ResolveHash::Request& request) = 0;
+    virtual api::UpdateAchievement::Response UpdateAchievement(const api::UpdateAchievement::Request& request) = 0;
+    virtual api::FetchAchievementInfo::Response FetchAchievementInfo(const api::FetchAchievementInfo::Request& request) = 0;
+    virtual api::FetchLeaderboardInfo::Response FetchLeaderboardInfo(const api::FetchLeaderboardInfo::Request& request) = 0;
+    virtual api::UpdateRichPresence::Response UpdateRichPresence(const api::UpdateRichPresence::Request& request) = 0;
 
     // === other functions ===
-    virtual UploadBadge::Response UploadBadge(const UploadBadge::Request& request) = 0;
+    virtual api::UploadBadge::Response UploadBadge(const api::UploadBadge::Request& request) = 0;
 
 protected:
     IServer() noexcept = default;

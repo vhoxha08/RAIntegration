@@ -5,6 +5,7 @@
 #include "data/Memory.hh"
 #include "data/models/AchievementModel.hh"
 
+#include <condition_variable>
 #include <string>
 #include <thread>
 

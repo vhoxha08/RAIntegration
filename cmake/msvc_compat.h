@@ -45,11 +45,8 @@
 #ifdef __cplusplus
 /* rcheevos/src/util/rc_compat.h treats any compiler without __STDC_VERSION__ (i.e. C++ on
  * clang/gcc) as C89 and redirects these to rc_* fallbacks - rc_snprintf ignores the buffer
- * size. Defining them as themselves makes its "#ifndef name" guards keep the real functions. */
-#define snprintf snprintf
-#define strcasecmp strcasecmp
-#define strncasecmp strncasecmp
-#define strdup strdup
+ * size. Defining them as themselves (below, after the C++ headers: libstdc++'s <cstdio> #undefs
+ * snprintf) makes its "#ifndef name" guards keep the real functions. */
 
 /* Likewise, without __STDC_SECURE_LIB__ it maps strcpy_s to an unbounded strcpy macro, which
  * also breaks the two-argument array overload. Provide bounded versions below instead.
@@ -63,6 +60,11 @@
 #include <cwchar>
 #include <cstring>
 #include <string>
+
+#define snprintf snprintf
+#define strcasecmp strcasecmp
+#define strncasecmp strncasecmp
+#define strdup strdup
 
 /* CRT functions without a portable spelling */
 inline void _wassert(const wchar_t* sMessage, const wchar_t* sFile, unsigned nLine)

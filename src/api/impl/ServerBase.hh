@@ -17,34 +17,34 @@ class ServerBase : public IServer
 public:
     // === game functions ===
 
-    ResolveHash::Response ResolveHash(const ResolveHash::Request&) override
+    api::ResolveHash::Response ResolveHash(const api::ResolveHash::Request&) override
     {
         return UnsupportedApi<ResolveHash::Response>(ResolveHash::Name());
     }
 
-    UpdateAchievement::Response UpdateAchievement(const UpdateAchievement::Request&) override
+    api::UpdateAchievement::Response UpdateAchievement(const api::UpdateAchievement::Request&) override
     {
         return UnsupportedApi<UpdateAchievement::Response>(UpdateAchievement::Name());
     }
 
-    FetchAchievementInfo::Response FetchAchievementInfo(const FetchAchievementInfo::Request&) override
+    api::FetchAchievementInfo::Response FetchAchievementInfo(const api::FetchAchievementInfo::Request&) override
     {
         return UnsupportedApi<FetchAchievementInfo::Response>(FetchAchievementInfo::Name());
     }
 
-    FetchLeaderboardInfo::Response FetchLeaderboardInfo(const FetchLeaderboardInfo::Request&) override
+    api::FetchLeaderboardInfo::Response FetchLeaderboardInfo(const api::FetchLeaderboardInfo::Request&) override
     {
         return UnsupportedApi<FetchLeaderboardInfo::Response>(FetchLeaderboardInfo::Name());
     }
 
-    UpdateRichPresence::Response UpdateRichPresence(const UpdateRichPresence::Request&) override
+    api::UpdateRichPresence::Response UpdateRichPresence(const api::UpdateRichPresence::Request&) override
     {
         return UnsupportedApi<UpdateRichPresence::Response>(UpdateRichPresence::Name());
     }
 
     // === other functions ===
 
-    UploadBadge::Response UploadBadge(const UploadBadge::Request&) override
+    api::UploadBadge::Response UploadBadge(const api::UploadBadge::Request&) override
     {
         return UnsupportedApi<UploadBadge::Response>(UploadBadge::Name());
     }

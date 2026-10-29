@@ -33,7 +33,9 @@ set(RA_COMPAT_HEADER ${CMAKE_CURRENT_SOURCE_DIR}/cmake/msvc_compat.h)
 function(ra_apply_compat target)
   if(NOT MSVC)
     target_compile_options(${target} PRIVATE
-      -Wno-extra-tokens
+      $<$<CXX_COMPILER_ID:Clang,AppleClang>:-Wno-extra-tokens>
+      # GCC: rapidjson (an older release) assigns a const member in a template it never instantiates
+      $<$<AND:$<CXX_COMPILER_ID:GNU>,$<COMPILE_LANGUAGE:CXX>>:-Wno-template-body>
       "$<$<COMPILE_LANGUAGE:CXX>:SHELL:-include ${RA_COMPAT_HEADER}>")
   endif()
 endfunction()
@@ -190,6 +192,10 @@ if(NOT WIN32)
     foreach(lib wxUSE_ZLIB wxUSE_LIBPNG wxUSE_LIBJPEG wxUSE_EXPAT wxUSE_REGEX)
       set(${lib} builtin CACHE STRING "" FORCE)
     endforeach()
+    if(UNIX AND NOT APPLE)
+      # the bundled zlib calls read/write/lseek without <unistd.h>, an error with current GCC; every Linux has zlib
+      set(wxUSE_ZLIB sys CACHE STRING "" FORCE)
+    endif()
     foreach(feature wxUSE_LIBTIFF wxUSE_WEBVIEW wxUSE_MEDIACTRL wxUSE_STC wxUSE_RICHTEXT wxUSE_RIBBON
                     wxUSE_PROPGRID wxUSE_AUI wxUSE_XRC wxUSE_WEBREQUEST wxUSE_SECRETSTORE
                     wxUSE_LIBSDL wxUSE_LIBMSPACK wxUSE_SOUND)
@@ -197,7 +203,9 @@ if(NOT WIN32)
     endforeach()
     add_subdirectory(wxWidgets EXCLUDE_FROM_ALL)
 
-    add_library(RAIntegrationWx STATIC
+    # object files, not an archive: RAIntegrationCore calls back into it (PlatformUi), and a linker reading
+    # archives once, in order (GNU ld), would have passed it already
+    add_library(RAIntegrationWx OBJECT
       src/ui/headless/HeadlessDesktop.cpp
       src/ui/headless/HeadlessImageRepository.cpp
       src/ui/drawing/RecordingSurface.cpp
