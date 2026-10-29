@@ -302,7 +302,7 @@ std::wstring StringBuilder::Widen(std::string_view str)
         }
         else if (nAccumulator < 0x10000)
         {
-            *pOut++ = static_cast<wchar_t>(nAccumulator);
+            *pOut++ = gsl::narrow_cast<wchar_t>(nAccumulator);
         }
         else if (nAccumulator < 0x110000)
         {
@@ -310,12 +310,12 @@ std::wstring StringBuilder::Widen(std::string_view str)
             {
                 // convert to surrogate pair
                 nAccumulator -= 0x10000;
-                *pOut++ = static_cast<wchar_t>(0xD800 | (nAccumulator >> 10));
-                *pOut++ = static_cast<wchar_t>(0xDC00 | (nAccumulator & 0x03FF));
+                *pOut++ = gsl::narrow_cast<wchar_t>(0xD800 | (nAccumulator >> 10));
+                *pOut++ = gsl::narrow_cast<wchar_t>(0xDC00 | (nAccumulator & 0x03FF));
             }
             else
             {
-                *pOut++ = static_cast<wchar_t>(nAccumulator);
+                *pOut++ = gsl::narrow_cast<wchar_t>(nAccumulator);
             }
         }
         else
