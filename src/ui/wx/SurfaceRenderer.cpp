@@ -41,7 +41,10 @@ const SurfaceRenderer::TextBitmap& SurfaceRenderer::GetTextBitmap(const std::str
     const wxString sWxText = wxString::FromUTF8(sText);
     wxCoord nWidth = 0, nHeight = 0;
     {
-        wxMemoryDC dcMeasure;
+        // measured where it's drawn, a bitmap at the display's resolution: at a fractional scale (i.e. 1.45), GTK lays
+        // the text out wider there than without one, which cut its end off
+        wxBitmap pProbe(wxImage(1, 1), 32, fScale);
+        wxMemoryDC dcMeasure(pProbe);
         dcMeasure.SetFont(pFont);
         dcMeasure.GetTextExtent(sWxText, &nWidth, &nHeight);
     }
