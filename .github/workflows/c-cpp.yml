@@ -12,11 +12,11 @@ jobs:
     runs-on: windows-latest
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v7
       with:
         submodules: recursive
     - name: Install MSBuild
-      uses: microsoft/setup-msbuild@v1.0.2
+      uses: microsoft/setup-msbuild@v3
     - name: Build
       run: msbuild.exe RA_Integration.sln -t:RA_Integration -p:Configuration=Release -p:Platform=Win32
 
@@ -24,11 +24,11 @@ jobs:
     runs-on: windows-latest
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v7
       with:
         submodules: recursive
     - name: Install MSBuild
-      uses: microsoft/setup-msbuild@v1.0.2
+      uses: microsoft/setup-msbuild@v3
     - name: Build
       run: msbuild.exe RA_Integration.sln -t:RA_Integration -p:Configuration=Release -p:Platform=x64
 
@@ -36,13 +36,17 @@ jobs:
     runs-on: windows-latest
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v7
       with:
         submodules: recursive
     - name: Install MSBuild
-      uses: microsoft/setup-msbuild@v1.0.2
-    - name: Install VSTest
-      uses: Malcolmnixon/Setup-VSTest@v4
+      uses: microsoft/setup-msbuild@v3
+    - name: Find VSTest
+      shell: pwsh
+      # vstest.console.exe comes with Visual Studio (Malcolmnixon/Setup-VSTest did this, on a retired Node.js)
+      run: |
+        $vstest = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -find "**\vstest.console.exe" | Select-Object -First 1
+        Split-Path $vstest | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
     - name: Build
       run: msbuild.exe -m RA_Integration.sln -p:Configuration=Release -p:Platform=Win32
     - name: Run lib Tests
@@ -57,13 +61,17 @@ jobs:
     runs-on: windows-latest
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v7
       with:
         submodules: recursive
     - name: Install MSBuild
-      uses: microsoft/setup-msbuild@v1.0.2
-    - name: Install VSTest
-      uses: Malcolmnixon/Setup-VSTest@v4
+      uses: microsoft/setup-msbuild@v3
+    - name: Find VSTest
+      shell: pwsh
+      # vstest.console.exe comes with Visual Studio (Malcolmnixon/Setup-VSTest did this, on a retired Node.js)
+      run: |
+        $vstest = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -find "**\vstest.console.exe" | Select-Object -First 1
+        Split-Path $vstest | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
     - name: Build
       run: msbuild.exe -m RA_Integration.sln -p:Configuration=Release -p:Platform=x64
     - name: Run lib Tests
@@ -77,11 +85,11 @@ jobs:
     runs-on: windows-latest
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v7
       with:
         submodules: recursive
     - name: Install MSBuild
-      uses: microsoft/setup-msbuild@v1.0.2
+      uses: microsoft/setup-msbuild@v3
     - name: Build
       run: msbuild.exe RA_Integration.sln -p:Configuration=Analysis -p:Platform=Win32 /WarnAsError
 
@@ -89,10 +97,10 @@ jobs:
     runs-on: windows-latest
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v7
       with:
         submodules: recursive
     - name: Install MSBuild
-      uses: microsoft/setup-msbuild@v1.0.2
+      uses: microsoft/setup-msbuild@v3
     - name: Build
       run: msbuild.exe RA_Integration.sln -p:Configuration=Analysis -p:Platform=x64 /WarnAsError
