@@ -65,3 +65,6 @@ Thumbs.db
 # CMake build tree
 /build/
 /build-*/
+
+# editors
+.vscode/
