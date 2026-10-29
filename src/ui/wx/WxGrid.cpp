@@ -384,17 +384,32 @@ void Grid::OnItemActivated(wxDataViewEvent& event)
         return;
 
     const auto nIndex = gsl::narrow_cast<gsl::index>(m_pModel->GetRow(event.GetItem()));
-    const auto* pDataViewColumn = event.GetDataViewColumn();
+    auto* pDataViewColumn = event.GetDataViewColumn();
+    // a double click on macOS only provides the position of the clicked column (the columns can't be reordered)
+    if (pDataViewColumn == nullptr && event.GetColumn() >= 0 &&
+        gsl::narrow_cast<unsigned int>(event.GetColumn()) < GetColumnCount())
+    {
+        pDataViewColumn = GetColumn(gsl::narrow_cast<unsigned int>(event.GetColumn()));
+    }
+
     if (pDataViewColumn != nullptr)
     {
         const auto nColumn = pDataViewColumn->GetModelColumn();
         if (nColumn < m_vColumns.size())
         {
             const auto& pColumn = m_vColumns.at(nColumn);
-            if (pColumn.nKind == GridColumn::Kind::Choice &&
-                (!pColumn.fIsEditable || pColumn.fIsEditable(*m_pItems, nIndex)))
+            const bool bEditable = !pColumn.fIsEditable || pColumn.fIsEditable(*m_pItems, nIndex);
+            if (pColumn.nKind == GridColumn::Kind::Choice && bEditable)
             {
                 ShowChoiceMenu(nIndex, pColumn);
+                return;
+            }
+
+            if (pColumn.nKind == GridColumn::Kind::Text && !pColumn.IsReadOnly() && bEditable)
+            {
+                // the native list doesn't start editing on a double click (it activates the item instead)
+                const auto pItem = event.GetItem();
+                CallAfter([this, pItem, pDataViewColumn]() { EditItem(pItem, pDataViewColumn); });
                 return;
             }
         }
