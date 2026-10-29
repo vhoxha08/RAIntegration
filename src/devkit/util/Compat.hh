@@ -13,7 +13,8 @@
 #define _CONSTANT_LOC constexpr auto // local vars can't be inline
 #define _CONSTANT_FN _CONSTANT_VAR
 
-#ifndef __STDC_VERSION__
+#if !defined(__STDC_VERSION__) && defined(_MSC_VER)
+ /* (MSVC warns about undefined macros in #if; GCC and Clang take them as 0, and GCC warns about defining this one) */
  #define __STDC_VERSION__ 0
 #endif /* !__STDC_VERSION__ */
 

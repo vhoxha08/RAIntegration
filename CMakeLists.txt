@@ -33,7 +33,9 @@ set(RA_COMPAT_HEADER ${CMAKE_CURRENT_SOURCE_DIR}/cmake/msvc_compat.h)
 function(ra_apply_compat target)
   if(NOT MSVC)
     target_compile_options(${target} PRIVATE
+      # the headers end with "#endif NAME" (MSVC takes it): Clang's and GCC's warnings about it
       $<$<CXX_COMPILER_ID:Clang,AppleClang>:-Wno-extra-tokens>
+      $<$<CXX_COMPILER_ID:GNU>:-Wno-endif-labels>
       # GCC: rapidjson (an older release) assigns a const member in a template it never instantiates
       $<$<AND:$<CXX_COMPILER_ID:GNU>,$<COMPILE_LANGUAGE:CXX>>:-Wno-template-body>
       "$<$<COMPILE_LANGUAGE:CXX>:SHELL:-include ${RA_COMPAT_HEADER}>")
