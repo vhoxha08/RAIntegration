@@ -10,6 +10,7 @@
 #include <atomic>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -172,6 +173,8 @@ private:
     void OnCharHook(wxKeyEvent& event);
     void OnMouseMove(wxMouseEvent& event);
     bool ScheduleResetIfNotMainThread();
+    bool ScheduleRowChangedIfNotMainThread(gsl::index nIndex);
+    void RefreshScheduledRows();
     void SyncSelectionFromItems();
     void OnSelectionChanged();
 
@@ -195,6 +198,8 @@ private:
     bool m_bSelectionChangedDuringUpdate = false;
     bool m_bSyncingSelection = false;
     std::atomic<bool> m_bResetScheduled{false};
+    std::mutex m_pScheduledRowsMutex;
+    std::vector<gsl::index> m_vScheduledRows; // changed on other threads, refreshed on the main thread
 };
 
 } // namespace wx

@@ -677,10 +677,45 @@ bool Grid::ScheduleResetIfNotMainThread()
     return true;
 }
 
+bool Grid::ScheduleRowChangedIfNotMainThread(gsl::index nIndex)
+{
+    // the emulator thread changes items every frame (i.e. hit counts); reloading everything for that would end
+    // any cell edit, so only redraw the changed rows
+    if (wxIsMainThread())
+        return false;
+
+    std::lock_guard<std::mutex> lock(m_pScheduledRowsMutex);
+    if (m_vScheduledRows.empty())
+        CallAfter([this]() { RefreshScheduledRows(); });
+    m_vScheduledRows.push_back(nIndex);
+    return true;
+}
+
+void Grid::RefreshScheduledRows()
+{
+    std::vector<gsl::index> vRows;
+    {
+        std::lock_guard<std::mutex> lock(m_pScheduledRowsMutex);
+        vRows.swap(m_vScheduledRows);
+    }
+
+    std::sort(vRows.begin(), vRows.end());
+    vRows.erase(std::unique(vRows.begin(), vRows.end()), vRows.end());
+    for (const auto nIndex : vRows)
+        RowChanged(nIndex);
+}
+
 void Grid::OnViewModelBoolValueChanged(gsl::index nIndex, const BoolModelProperty::ChangeArgs& args)
 {
-    if (ScheduleResetIfNotMainThread())
+    if (m_pIsSelectedProperty && args.Property == *m_pIsSelectedProperty)
+    {
+        if (ScheduleResetIfNotMainThread()) // resynchronizes the selection
+            return;
+    }
+    else if (ScheduleRowChangedIfNotMainThread(nIndex))
+    {
         return;
+    }
 
     if (m_pIsSelectedProperty && args.Property == *m_pIsSelectedProperty)
     {
@@ -704,7 +739,7 @@ void Grid::OnViewModelBoolValueChanged(gsl::index nIndex, const BoolModelPropert
 
 void Grid::OnViewModelStringValueChanged(gsl::index nIndex, const StringModelProperty::ChangeArgs&)
 {
-    if (ScheduleResetIfNotMainThread())
+    if (ScheduleRowChangedIfNotMainThread(nIndex))
         return;
 
     RowChanged(nIndex);
@@ -712,7 +747,7 @@ void Grid::OnViewModelStringValueChanged(gsl::index nIndex, const StringModelPro
 
 void Grid::OnViewModelIntValueChanged(gsl::index nIndex, const IntModelProperty::ChangeArgs&)
 {
-    if (ScheduleResetIfNotMainThread())
+    if (ScheduleRowChangedIfNotMainThread(nIndex))
         return;
 
     RowChanged(nIndex);
@@ -742,19 +777,20 @@ void Grid::OnViewModelRemoved(gsl::index)
 
 void Grid::OnViewModelChanged(gsl::index nIndex)
 {
-    if (!ScheduleResetIfNotMainThread())
+    if (!ScheduleRowChangedIfNotMainThread(nIndex))
         RowChanged(nIndex);
 }
 
+// updates on other threads: the changes they wrap are scheduled individually (rows) or as a reset (added/removed)
 void Grid::OnBeginViewModelCollectionUpdate()
 {
-    if (!ScheduleResetIfNotMainThread())
+    if (wxIsMainThread())
         ++m_nUpdateDepth;
 }
 
 void Grid::OnEndViewModelCollectionUpdate()
 {
-    if (ScheduleResetIfNotMainThread())
+    if (!wxIsMainThread())
         return;
 
     if (m_nUpdateDepth > 0 && --m_nUpdateDepth == 0)
