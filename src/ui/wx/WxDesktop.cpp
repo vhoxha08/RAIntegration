@@ -251,13 +251,14 @@ ra::ui::DialogResult WxDesktop::ShowFileDialog(WindowViewModelBase& vmViewModel)
     }
     else
     {
-        // file types are stored as "*.ext1;*.ext2", which is also wxWidgets' wildcard syntax
+        // file types map the extensions ("*.ext1;*.ext2", which is also wxWidgets' wildcard syntax) to the
+        // description; wxWidgets wants "description|extensions"
         wxString sWildcard;
         for (const auto& pType : vmFileDialog.GetFileTypes())
         {
             if (!sWildcard.empty())
                 sWildcard += "|";
-            sWildcard += ToWx(pType.first) + "|" + ToWx(pType.second);
+            sWildcard += ToWx(pType.second) + " (" + ToWx(pType.first) + ")|" + ToWx(pType.first);
         }
         if (sWildcard.empty())
             sWildcard = wxFileSelectorDefaultWildcardStr;
