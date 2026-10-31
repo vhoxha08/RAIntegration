@@ -122,14 +122,8 @@ private:
             mockEmulatorMemoryContext.MockMemory(memory);
         }
 
-        bool CanBeginNewSearch() const { return GetValue(CanBeginNewSearchProperty); }
-        bool CanFilter() const { return GetValue(CanFilterProperty); }
-        bool CanContinuousFilter() const { return GetValue(CanContinuousFilterProperty); }
+        // (CanBeginNewSearch, CanFilter, CanGoToPreviousPage, SetScrollOffset & co. are the view model's)
         bool CanEditFilterValue() const { return GetValue(CanEditFilterValueProperty); }
-        bool CanGoToPreviousPage() const { return GetValue(CanGoToPreviousPageProperty); }
-        bool CanGoToNextPage() const { return GetValue(CanGoToNextPageProperty); }
-
-        void SetScrollOffset(int nValue) { SetValue(ScrollOffsetProperty, nValue); }
 
         const std::wstring& ContinuousFilterLabel() const { return GetValue(ContinuousFilterLabelProperty); }
     };
