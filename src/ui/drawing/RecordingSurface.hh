@@ -20,7 +20,9 @@ namespace drawing {
 /// <remarks>
 /// The toolkit renders popups into their own surfaces and then copies those onto the overlay surface
 /// (DrawSurface), possibly faded (SetOpacity). Copying a recording surface copies its commands, translated and
-/// clipped, so the final surface holds everything needed to draw a frame.
+/// clipped, so the final surface holds everything needed to draw a frame. Copying part of one (i.e. a character
+/// of the memory viewer's font surfaces) records a single Surface command instead, with a snapshot of the other
+/// surface's commands, which the renderer draws once and then copies from.
 /// </remarks>
 class RecordingSurface : public ISurface
 {
@@ -62,6 +64,26 @@ public:
         Text,
         Image,
         Pixels,
+        Surface, // part of another surface (see Snapshot)
+    };
+
+    struct Op;
+
+    /// <summary>
+    /// The commands of a surface at the time part of it was copied (see OpType::Surface).
+    /// </summary>
+    struct Snapshot
+    {
+        std::vector<Op> vOps;
+        int nWidth = 0;
+        int nHeight = 0;
+        uint64_t nId = 0; // unique: a new snapshot is taken when the surface changes
+        bool bHasImages = false; // images are drawn from the image repository, as they're downloaded
+
+        /// <summary>
+        /// For the renderer to keep what it made of the commands (i.e. a bitmap), released with them.
+        /// </summary>
+        mutable std::shared_ptr<void> pRendered;
     };
 
     struct Op
@@ -83,19 +105,27 @@ public:
 
         std::shared_ptr<PixelImage> pPixels;
 
+        std::shared_ptr<const Snapshot> pSurface; // fX, fY, fWidth, fHeight show it from fSurfaceX, fSurfaceY
+        float fSurfaceX = 0.0f;
+        float fSurfaceY = 0.0f;
+
         uint64_t nSequence = 0; // increases with every recorded command (see GetOps)
     };
 
     /// <summary>
     /// The recorded drawing commands, in order. Commands hidden by later opaque fills, erases, or images on an
     /// opaque surface are dropped; a renderer that keeps its own image can draw just the commands with a higher
-    /// nSequence than the last one it drew.
+    /// nSequence than the last one it drew. (Once it discards those, commands hidden by later opaque fills are only
+    /// dropped when the recording gets large: see DiscardOps.)
     /// </summary>
     const std::vector<Op>& GetOps() const noexcept { return m_vOps; }
 
     /// <summary>
     /// Drops the recorded commands up to and including <paramref name="nSequence" />. For renderers that keep
     /// their own image and only draw what was added since (see GetOps), so the recording doesn't have to.
+    /// The recording then only holds what was drawn since the last paint, so looking for the commands each opaque
+    /// fill hides (all of them, for each fill: a full repaint of the memory viewer was quadratic) stops, unless the
+    /// recording gets large (i.e. while nothing paints).
     /// </summary>
     void DiscardOps(uint64_t nSequence) const;
 
@@ -120,12 +150,15 @@ private:
     void AddOp(Op&& pOp);
     void RemoveCoveredOps(const Op& pOpaqueOp);
     void RemoveOpsUnderImage(int nX, int nY, int nWidth, int nHeight);
+    std::shared_ptr<const Snapshot> GetSnapshot() const;
     float GetAlpha(Color nColor) const noexcept;
 
     int m_nWidth;
     int m_nHeight;
     bool m_bTransparent;
     mutable std::vector<Op> m_vOps; // DiscardOps is const: it doesn't change what the surface shows
+    mutable bool m_bOpsDiscarded = false; // see DiscardOps
+    mutable std::shared_ptr<const Snapshot> m_pSnapshot; // taken when part of the surface is copied, until it changes
 
     static Font GetFont(int nFont);
 };

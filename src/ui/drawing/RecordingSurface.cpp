@@ -56,6 +56,8 @@ RecordingSurface::RecordingSurface(int nWidth, int nHeight, bool bTransparent) n
 
 RecordingSurface::Op& RecordingSurface::AddOp(OpType nType, int nX, int nY, int nWidth, int nHeight)
 {
+    m_pSnapshot.reset();
+
     Op& pOp = m_vOps.emplace_back();
     pOp.nSequence = NextSequence();
     pOp.nType = nType;
@@ -70,17 +72,27 @@ RecordingSurface::Op& RecordingSurface::AddOp(OpType nType, int nX, int nY, int 
     return pOp;
 }
 
+// a renderer that discards what it drew only gets the commands since its last paint (see DiscardOps)
+static constexpr size_t MAX_UNDISCARDED_OPS = 8192;
+
 void RecordingSurface::AddOp(Op&& pOp)
 {
-    if (pOp.nType == OpType::Rectangle && pOp.fAlpha >= 1.0f && (pOp.nColor >> 24) == 0xFF)
+    if (pOp.nType == OpType::Rectangle && pOp.fAlpha >= 1.0f && (pOp.nColor >> 24) == 0xFF &&
+        (!m_bOpsDiscarded || m_vOps.size() > MAX_UNDISCARDED_OPS))
+    {
         RemoveCoveredOps(pOp);
+    }
 
+    m_pSnapshot.reset();
     pOp.nSequence = NextSequence();
     m_vOps.push_back(std::move(pOp));
 }
 
 void RecordingSurface::DiscardOps(uint64_t nSequence) const
 {
+    m_bOpsDiscarded = true;
+    m_pSnapshot.reset();
+
     if (m_vOps.empty() || m_vOps.front().nSequence > nSequence)
         return;
 
@@ -106,6 +118,7 @@ void RecordingSurface::RemoveCoveredOps(const Op& pOpaqueOp)
     if (fLeft >= fRight || fTop >= fBottom)
         return;
 
+    m_pSnapshot.reset();
     m_vOps.erase(std::remove_if(m_vOps.begin(), m_vOps.end(),
                                 [fLeft, fTop, fRight, fBottom](const Op& pOp) {
                                     const float fOpLeft = std::max(pOp.fX, pOp.fClipLeft);
@@ -286,6 +299,27 @@ void RecordingSurface::DrawSurface(int nX, int nY, const ISurface& pSurface, int
     if (pSource == nullptr || pSource == this)
         return;
 
+    if (nSurfaceX != 0 || nSurfaceY != 0 || nWidth != pSource->m_nWidth || nHeight != pSource->m_nHeight)
+    {
+        // part of the surface (i.e. a character of a font surface): one command, instead of a copy of each of the
+        // surface's commands under that part, each clipped to it (the memory viewer copies three characters for
+        // every byte it shows, from surfaces with a hundred commands)
+        if (pSource->m_vOps.empty() || nWidth <= 0 || nHeight <= 0)
+            return;
+
+        // (not with images: a renderer keeping what it drew of the snapshot wouldn't show one that's downloaded
+        // later, i.e. a badge on a popup)
+        auto pSnapshot = pSource->GetSnapshot();
+        if (!pSnapshot->bHasImages)
+        {
+            Op& pOp = AddOp(OpType::Surface, nX, nY, nWidth, nHeight);
+            pOp.pSurface = std::move(pSnapshot);
+            pOp.fSurfaceX = static_cast<float>(nSurfaceX);
+            pOp.fSurfaceY = static_cast<float>(nSurfaceY);
+            return;
+        }
+    }
+
     // copy the source's commands so they draw the requested region at (nX, nY), clipped to it
     const float fOffsetX = static_cast<float>(nX - nSurfaceX);
     const float fOffsetY = static_cast<float>(nY - nSurfaceY);
@@ -317,10 +351,40 @@ void RecordingSurface::DrawSurface(int nX, int nY, const ISurface& pSurface, int
     }
 }
 
+std::shared_ptr<const RecordingSurface::Snapshot> RecordingSurface::GetSnapshot() const
+{
+    if (!m_pSnapshot)
+    {
+        auto pSnapshot = std::make_shared<Snapshot>();
+        pSnapshot->vOps = m_vOps;
+
+        // like copying the commands (the whole surface, below), each is clipped to its own area: text can draw past
+        // what it was measured at, into the next character of a font surface
+        for (auto& pOp : pSnapshot->vOps)
+        {
+            pOp.fClipLeft = std::max(pOp.fClipLeft, pOp.fX);
+            pOp.fClipTop = std::max(pOp.fClipTop, pOp.fY);
+            pOp.fClipRight = std::min(pOp.fClipRight, pOp.fX + pOp.fWidth);
+            pOp.fClipBottom = std::min(pOp.fClipBottom, pOp.fY + pOp.fHeight);
+
+            if (pOp.nType == OpType::Image || (pOp.pSurface && pOp.pSurface->bHasImages))
+                pSnapshot->bHasImages = true;
+        }
+
+        pSnapshot->nWidth = m_nWidth;
+        pSnapshot->nHeight = m_nHeight;
+        pSnapshot->nId = NextSequence();
+        m_pSnapshot = std::move(pSnapshot);
+    }
+
+    return m_pSnapshot;
+}
+
 void RecordingSurface::SetOpacity(double fAlpha)
 {
     // sets the alpha of everything drawn so far (not cumulative), like the GDI implementation
     const float fNewAlpha = static_cast<float>(std::clamp(fAlpha, 0.0, 1.0));
+    m_pSnapshot.reset();
     for (auto& pOp : m_vOps)
         pOp.fAlpha = fNewAlpha;
 }

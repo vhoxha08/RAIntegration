@@ -348,6 +348,13 @@ uint64_t OverlayRenderer::Hash(const ra::ui::drawing::RecordingSurface::Op& pOp)
         fAddValue(pOp.pPixels->nHeight);
         fAdd(pOp.pPixels->vPixels.data(), pOp.pPixels->vPixels.size() * sizeof(uint32_t));
     }
+    if (pOp.pSurface)
+    {
+        // a snapshot is taken again when the surface changes (with a new id)
+        fAddValue(pOp.pSurface->nId);
+        fAddValue(pOp.fSurfaceX);
+        fAddValue(pOp.fSurfaceY);
+    }
 
     return nHash;
 }
