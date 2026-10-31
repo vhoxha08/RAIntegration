@@ -30,8 +30,7 @@ jobs:
         if (-not $vstest) { throw "vstest.console.exe not found" }
         Split-Path $vstest | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
     - name: Build
-      # without link-time code generation: the tests don't need it, and it makes the links slow
-      run: msbuild.exe -m RA_Integration.sln -p:Configuration=Release -p:Platform=x64 -p:WholeProgramOptimization=false
+      run: msbuild.exe -m RA_Integration.sln -p:Configuration=Release -p:Platform=x64
     - name: Run lib Tests
       run: vstest.console bin\x64\Release\RADevKit.Tests.dll
     - name: Run DLL Tests
