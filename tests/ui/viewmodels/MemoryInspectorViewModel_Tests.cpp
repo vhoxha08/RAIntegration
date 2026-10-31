@@ -44,8 +44,6 @@ private:
         ra::ui::mocks::MockDesktop mockDesktop;
         ra::ui::viewmodels::mocks::MockWindowManager mockWindowManager;
 
-        void SetCurrentAddressText(const std::wstring& sValue) { SetValue(CurrentAddressTextProperty, sValue); }
-
         std::array<unsigned char, 32> memory{};
 
         GSL_SUPPRESS_F6 MemoryInspectorViewModelHarness()

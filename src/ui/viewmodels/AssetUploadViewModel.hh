@@ -39,7 +39,8 @@ protected:
     {
         // sleep 500-1500ms to allow server to stop throttling us.
         // stagger value so we don't slam it in batches.
-        std::this_thread::sleep_for(std::chrono::milliseconds(rand() % 1000 + 500));
+        // (sleep_for only throws for a clock or duration that can: not std::chrono::milliseconds)
+        GSL_SUPPRESS_F6 std::this_thread::sleep_for(std::chrono::milliseconds(rand() % 1000 + 500));
     }
 
 private:

@@ -15,15 +15,19 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v7
-      with:
-        submodules: recursive
+    - name: Submodules
+      # only those RA_Integration.sln uses (not wxWidgets, the macOS/Linux UI, nor rapidjson's googletest), without
+      # their history
+      run: git submodule update --init --depth 1 --jobs 4 rapidjson rcheevos GSL RAInterface
     - name: Install MSBuild
       uses: microsoft/setup-msbuild@v3
     - name: Find VSTest
       shell: pwsh
-      # vstest.console.exe comes with Visual Studio (Malcolmnixon/Setup-VSTest did this, on a retired Node.js)
+      # vstest.console.exe comes with Visual Studio (Malcolmnixon/Setup-VSTest did this, on a retired Node.js); by its
+      # path: a "**" pattern searches all of Visual Studio, which takes about a minute
       run: |
-        $vstest = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -find "**\vstest.console.exe" | Select-Object -First 1
+        $vstest = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -find "Common7\IDE\Extensions\TestPlatform\vstest.console.exe" | Select-Object -First 1
+        if (-not $vstest) { throw "vstest.console.exe not found" }
         Split-Path $vstest | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
     - name: Build
       run: msbuild.exe -m RA_Integration.sln -p:Configuration=Release -p:Platform=x64
@@ -40,9 +44,11 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v7
-      with:
-        submodules: recursive
+    - name: Submodules
+      # only those RA_Integration.sln uses (not wxWidgets, the macOS/Linux UI, nor rapidjson's googletest), without
+      # their history
+      run: git submodule update --init --depth 1 --jobs 4 rapidjson rcheevos GSL RAInterface
     - name: Install MSBuild
       uses: microsoft/setup-msbuild@v3
     - name: Build
-      run: msbuild.exe RA_Integration.sln -p:Configuration=Analysis -p:Platform=x64 /WarnAsError
+      run: msbuild.exe -m RA_Integration.sln -p:Configuration=Analysis -p:Platform=x64 /WarnAsError

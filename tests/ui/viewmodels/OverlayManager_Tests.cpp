@@ -647,6 +647,7 @@ public:
         Assert::IsTrue(overlay.WasRenderRequested());
         Assert::IsTrue(overlay.WasShowRequested());
 
+#ifdef _WIN32
         // 0.4 seconds to fully visualize, expect it to be partially onscreen after 0.25 seconds
         overlay.mockClock.AdvanceTime(std::chrono::milliseconds(250));
         overlay.ResetRenderRequested();
@@ -683,6 +684,29 @@ public:
         Assert::AreEqual(-800, overlay.GetOverlayRenderX());
         Assert::IsFalse(overlay.WasRenderRequested());
         Assert::IsTrue(overlay.WasHideRequested());
+
+#else
+        // no slide outside Windows (OverlayViewModel::INOUT_TIME): fully on screen at the first render
+        overlay.mockClock.AdvanceTime(std::chrono::milliseconds(250));
+        overlay.ResetRenderRequested();
+        overlay.Render(mockSurface, false);
+        Assert::AreEqual(0, overlay.GetOverlayRenderX());
+        Assert::IsFalse(overlay.WasRenderRequested());
+
+        Assert::IsTrue(overlay.IsOverlayFullyVisible());
+
+        overlay.HideOverlay();
+        Assert::IsTrue(overlay.WasRenderRequested());
+        overlay.Render(mockSurface, false); // force state change from FadeOutRequested to FadeOut
+
+        // and fully off screen at the first render after that
+        overlay.mockClock.AdvanceTime(std::chrono::milliseconds(250));
+        overlay.ResetRenderRequested();
+        overlay.Render(mockSurface, false);
+        Assert::AreEqual(-800, overlay.GetOverlayRenderX());
+        Assert::IsFalse(overlay.WasRenderRequested());
+        Assert::IsTrue(overlay.WasHideRequested());
+#endif
 
         Assert::IsFalse(overlay.IsOverlayFullyVisible());
     }
