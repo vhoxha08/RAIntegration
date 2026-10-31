@@ -35,6 +35,9 @@ private:
         double fWidth = 0.0;
         double fHeight = 0.0;
     };
+    const wxGraphicsBitmap& GetSnapshotPart(const ra::ui::drawing::RecordingSurface::Snapshot& pSnapshot,
+                                            double fScale, double fX, double fY, double fWidth, double fHeight);
+
     const TextBitmap& GetTextBitmap(const std::string& sText, const std::string& sFontFace, float fFontSize,
                                     bool bBold, uint32_t nColor, double fScale);
 

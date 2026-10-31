@@ -7,7 +7,10 @@
 #include <wx/image.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
+#include <map>
+#include <tuple>
 
 namespace ra {
 namespace ui {
@@ -90,6 +93,56 @@ static const wxGraphicsBitmap& GetPixelsBitmap(const RecordingSurface::PixelImag
     }
 
     return *static_cast<const wxGraphicsBitmap*>(pPixels.pRendered.get());
+}
+
+// what a snapshot (part of another surface: i.e. the memory viewer's font surfaces) looks like at a scale, and the
+// parts of it that were drawn
+struct RenderedSnapshot
+{
+    double fScale = 0.0;
+    wxGraphicsBitmap pBitmap;
+    std::map<std::tuple<int, int, int, int>, wxGraphicsBitmap> mParts;
+};
+
+const wxGraphicsBitmap& SurfaceRenderer::GetSnapshotPart(const RecordingSurface::Snapshot& pSnapshot, double fScale,
+                                                         double fX, double fY, double fWidth, double fHeight)
+{
+    auto pRendered = std::static_pointer_cast<RenderedSnapshot>(pSnapshot.pRendered);
+    if (!pRendered || pRendered->fScale != fScale)
+    {
+        // drawn once, at the display's resolution, on a transparent bitmap (what the surface doesn't draw on shows
+        // what's under it, as when its commands are copied)
+        wxImage pImage(std::max(1, static_cast<int>(std::ceil(pSnapshot.nWidth * fScale))),
+                       std::max(1, static_cast<int>(std::ceil(pSnapshot.nHeight * fScale))));
+        pImage.InitAlpha();
+        memset(pImage.GetAlpha(), 0, static_cast<size_t>(pImage.GetWidth()) * pImage.GetHeight());
+        wxBitmap pBitmap(pImage, 32, fScale);
+        {
+            wxMemoryDC dc(pBitmap);
+            std::unique_ptr<wxGraphicsContext> pContext(wxGraphicsContext::Create(dc));
+            if (pContext)
+                Draw(*pContext, pSnapshot.vOps, fScale);
+        }
+
+        pRendered = std::make_shared<RenderedSnapshot>();
+        pRendered->fScale = fScale;
+        pRendered->pBitmap = wxGraphicsRenderer::GetDefaultRenderer()->CreateBitmap(pBitmap);
+        pSnapshot.pRendered = pRendered;
+    }
+
+    // the part, in the bitmap's pixels
+    const int nLeft = static_cast<int>(std::lround(fX * fScale));
+    const int nTop = static_cast<int>(std::lround(fY * fScale));
+    const int nWidth = static_cast<int>(std::lround(fWidth * fScale));
+    const int nHeight = static_cast<int>(std::lround(fHeight * fScale));
+    const auto pKey = std::make_tuple(nLeft, nTop, nWidth, nHeight);
+    const auto pIter = pRendered->mParts.find(pKey);
+    if (pIter != pRendered->mParts.end())
+        return pIter->second;
+
+    auto pPart = wxGraphicsRenderer::GetDefaultRenderer()->CreateSubBitmap(pRendered->pBitmap, nLeft, nTop, nWidth,
+                                                                         nHeight);
+    return pRendered->mParts.emplace(pKey, std::move(pPart)).first->second;
 }
 
 void SurfaceRenderer::Draw(wxGraphicsContext& pContext, const std::vector<RecordingSurface::Op>& vOps,
@@ -186,6 +239,25 @@ void SurfaceRenderer::Draw(wxGraphicsContext& pContext, const std::vector<Record
                 if (pOp.pPixels)
                     pContext.DrawBitmap(GetPixelsBitmap(*pOp.pPixels), fX, fY, fWidth, fHeight);
                 break;
+
+            case OpType::Surface:
+            {
+                if (!pOp.pSurface)
+                    break;
+
+                // the part of the surface, clipped to the surface's area
+                const double fLeft = std::max(0.0, static_cast<double>(pOp.fSurfaceX));
+                const double fTop = std::max(0.0, static_cast<double>(pOp.fSurfaceY));
+                const double fRight = std::min(static_cast<double>(pOp.pSurface->nWidth), pOp.fSurfaceX + fWidth);
+                const double fBottom = std::min(static_cast<double>(pOp.pSurface->nHeight), pOp.fSurfaceY + fHeight);
+                if (fRight <= fLeft || fBottom <= fTop)
+                    break;
+
+                const auto& pPart = GetSnapshotPart(*pOp.pSurface, fScale, fLeft, fTop, fRight - fLeft, fBottom - fTop);
+                pContext.DrawBitmap(pPart, fX + (fLeft - pOp.fSurfaceX), fY + (fTop - pOp.fSurfaceY), fRight - fLeft,
+                                    fBottom - fTop);
+                break;
+            }
 
             default:
                 break;
