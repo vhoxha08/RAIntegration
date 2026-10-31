@@ -8,6 +8,7 @@
 #include <wx/timer.h>
 
 class wxCheckBox;
+class wxSpinButton;
 class wxStaticBitmap;
 class wxStaticText;
 class wxTextCtrl;
@@ -45,6 +46,7 @@ private:
     wxCheckBox* m_pActive = nullptr;
     LookupChoice* m_pPoints = nullptr;
     wxTextCtrl* m_pBadge = nullptr;
+    wxSpinButton* m_pBadgeSpin = nullptr;
     wxStaticBitmap* m_pBadgeImage = nullptr;
     std::wstring m_sDisplayedBadge;
     bool m_bBadgeImageLoaded = false;

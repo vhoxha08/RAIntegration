@@ -15,6 +15,8 @@
 
 #include "util/Strings.hh"
 
+#include <algorithm>
+
 #include <wx/bitmap.h>
 #include <wx/button.h>
 #include <wx/checkbox.h>
@@ -165,8 +167,10 @@ wxSizer* AssetEditorDialog::CreateHeader()
         ApplyBadgeText();
         event.Skip();
     });
+    m_pBinder.BindEnabled(m_pBadge, vm, AssetEditorViewModel::IsAssetLoadedProperty);
     pBadgeRow->Add(m_pBadge, 0, wxALIGN_CENTER_VERTICAL);
-    auto* pSpin = new wxSpinButton(pBadgeParent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxSP_VERTICAL | wxSP_WRAP);
+    // enabled in UpdateBadge: a local badge can't be stepped (BadgeNameBinding)
+    auto* pSpin = m_pBadgeSpin = new wxSpinButton(pBadgeParent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxSP_VERTICAL | wxSP_WRAP);
     pSpin->SetRange(-1, 1);
     pSpin->SetValue(0);
     pSpin->Bind(wxEVT_SPIN, [this, pSpin, &vm](wxSpinEvent& event) {
@@ -532,6 +536,10 @@ void AssetEditorDialog::UpdateBadge()
     if (!m_pBadge->HasFocus())
         SetTextIfChanged(*m_pBadge, bLocal ? std::wstring(L"[local]") : sBadge);
 
+    const bool bSpinEnabled = m_vmAssetEditor.IsAssetLoaded() && !bLocal;
+    if (m_pBadgeSpin->IsEnabled() != bSpinEnabled)
+        m_pBadgeSpin->Enable(bSpinEnabled);
+
     if (sBadge != m_sDisplayedBadge)
     {
         m_sDisplayedBadge = sBadge;
@@ -542,21 +550,30 @@ void AssetEditorDialog::UpdateBadge()
     if (m_bBadgeImageLoaded || sBadge.empty())
         return;
 
-    // the badge is downloaded in the background; show it once it's available
+    // the badge is downloaded in the background; show it once it's available.
+    // a local badge ("local\\<game>-<md5>.<ext>") is a Badge in the badge directory's
+    // "local" folder (ImageRepository::StoreImage), and there's nothing to download for it
     auto& pImageRepository = ra::services::ServiceLocator::GetMutable<ra::ui::IImageRepository>();
-    const auto nType = bLocal ? ra::ui::ImageType::Local : ra::ui::ImageType::Badge;
-    const std::string sName = ra::util::String::Narrow(bLocal ? sBadge.substr(6) : sBadge);
+    const auto nType = ra::ui::ImageType::Badge;
+    const std::string sName = ra::util::String::Narrow(sBadge);
     if (!pImageRepository.IsImageAvailable(nType, sName))
     {
-        pImageRepository.FetchImage(nType, sName, "");
-        if (!m_pBadgeTimer.IsRunning())
-            m_pBadgeTimer.StartOnce(500); // check again later
+        if (!bLocal)
+        {
+            pImageRepository.FetchImage(nType, sName, "");
+            if (!m_pBadgeTimer.IsRunning())
+                m_pBadgeTimer.StartOnce(500); // check again later
+        }
         return;
     }
 
+    // paths are built with '\\' separators, which only Windows understands
+    std::wstring sPath = pImageRepository.GetFilename(nType, sName);
+    std::replace(sPath.begin(), sPath.end(), L'\\', L'/');
+
     wxImage pImage;
     wxLogNull pNoLog; // an incomplete or invalid download just shows no image
-    if (pImage.LoadFile(ToWx(pImageRepository.GetFilename(nType, sName))))
+    if (pImage.LoadFile(ToWx(sPath)))
     {
         const int nSize = FromDIP(BADGE_SIZE);
         pImage.Rescale(nSize, nSize, wxIMAGE_QUALITY_HIGH);
