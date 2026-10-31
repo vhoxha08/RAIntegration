@@ -7,56 +7,9 @@ on:
     branches: [ master, cross-platform ]
   workflow_dispatch:
 
+# x64 only: the tests build the DLL too, and the fork's DLL isn't published (Windows' RALibretro downloads the official
+# one); the macOS/Linux builds are RALibretro's
 jobs:
-  Win32-DLL:
-    runs-on: windows-latest
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v7
-      with:
-        submodules: recursive
-    - name: Install MSBuild
-      uses: microsoft/setup-msbuild@v3
-    - name: Build
-      run: msbuild.exe RA_Integration.sln -t:RA_Integration -p:Configuration=Release -p:Platform=Win32
-
-  Win64-DLL:
-    runs-on: windows-latest
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v7
-      with:
-        submodules: recursive
-    - name: Install MSBuild
-      uses: microsoft/setup-msbuild@v3
-    - name: Build
-      run: msbuild.exe RA_Integration.sln -t:RA_Integration -p:Configuration=Release -p:Platform=x64
-
-  Win32-Tests:
-    runs-on: windows-latest
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v7
-      with:
-        submodules: recursive
-    - name: Install MSBuild
-      uses: microsoft/setup-msbuild@v3
-    - name: Find VSTest
-      shell: pwsh
-      # vstest.console.exe comes with Visual Studio (Malcolmnixon/Setup-VSTest did this, on a retired Node.js)
-      run: |
-        $vstest = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -find "**\vstest.console.exe" | Select-Object -First 1
-        Split-Path $vstest | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
-    - name: Build
-      run: msbuild.exe -m RA_Integration.sln -p:Configuration=Release -p:Platform=Win32
-    - name: Run lib Tests
-      run: vstest.console bin\Win32\Release\RADevKit.Tests.dll
-    - name: Run DLL Tests
-      run: vstest.console bin\Win32\Release\RA_Integration.Tests.dll
-    - name: Run Interface Tests
-      # requires the DLL to have been built
-      run: vstest.console bin\Win32\Release\RA_Interface.Tests.dll
-
   Win64-Tests:
     runs-on: windows-latest
     steps:
@@ -79,19 +32,8 @@ jobs:
     - name: Run DLL Tests
       run: vstest.console bin\x64\Release\RA_Integration.Tests.dll
     - name: Run Interface Tests
+      # requires the DLL to have been built
       run: vstest.console bin\x64\Release\RA_Interface.Tests.dll
-
-  Win32-Analysis:
-    runs-on: windows-latest
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v7
-      with:
-        submodules: recursive
-    - name: Install MSBuild
-      uses: microsoft/setup-msbuild@v3
-    - name: Build
-      run: msbuild.exe RA_Integration.sln -p:Configuration=Analysis -p:Platform=Win32 /WarnAsError
 
   Win64-Analysis:
     runs-on: windows-latest
