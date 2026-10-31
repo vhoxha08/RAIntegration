@@ -67,10 +67,13 @@ bool OverlayViewModel::UpdateRenderImage(double fElapsed)
         if (m_nState == State::FadeIn)
         {
             double nOffset = 0;
-            if (INOUT_TIME > 0.0 && m_fAnimationProgress < INOUT_TIME) // (no slide outside Windows)
+            if constexpr (INOUT_TIME > 0.0) // (no slide outside Windows)
             {
-                const auto fPercentage = (INOUT_TIME - m_fAnimationProgress) / INOUT_TIME;
-                nOffset = nWidth * (fPercentage * fPercentage);
+                if (m_fAnimationProgress < INOUT_TIME)
+                {
+                    const auto fPercentage = (INOUT_TIME - m_fAnimationProgress) / INOUT_TIME;
+                    nOffset = nWidth * (fPercentage * fPercentage);
+                }
             }
 
             const int nNewX = ftol(-nOffset);
@@ -92,10 +95,13 @@ bool OverlayViewModel::UpdateRenderImage(double fElapsed)
         else if (m_nState == State::FadeOut)
         {
             double nOffset = nWidth;
-            if (INOUT_TIME > 0.0 && m_fAnimationProgress < INOUT_TIME) // (no slide outside Windows)
+            if constexpr (INOUT_TIME > 0.0) // (no slide outside Windows)
             {
-                const auto fPercentage = m_fAnimationProgress / INOUT_TIME;
-                nOffset = nWidth * (fPercentage * fPercentage);
+                if (m_fAnimationProgress < INOUT_TIME)
+                {
+                    const auto fPercentage = m_fAnimationProgress / INOUT_TIME;
+                    nOffset = nWidth * (fPercentage * fPercentage);
+                }
             }
 
             const int nNewX = ftol(-nOffset);

@@ -454,7 +454,8 @@ API void CCONV _RA_InstallMemoryBank(int nBankID, void* pReader, void* pWriter, 
     auto* pEmulatorMemoryContext = dynamic_cast<ra::context::impl::EmulatorMemoryContext*>(&ra::services::ServiceLocator::GetMutable<ra::context::IEmulatorMemoryContext>());
     if (pEmulatorMemoryContext)
     {
-        pEmulatorMemoryContext->AddMemoryBlock(nBankID, nBankSize,
+        // void* to a function pointer: static_cast is an MSVC extension (GCC and Clang refuse it)
+        GSL_SUPPRESS_TYPE1 pEmulatorMemoryContext->AddMemoryBlock(nBankID, nBankSize,
             reinterpret_cast<ra::context::impl::EmulatorMemoryContext::MemoryReadFunction*>(pReader),
             reinterpret_cast<ra::context::impl::EmulatorMemoryContext::MemoryWriteFunction*>(pWriter));
     }
@@ -465,7 +466,8 @@ API void CCONV _RA_InstallMemoryBankBlockReader(int nBankID, void* pReader)
     auto* pEmulatorMemoryContext = dynamic_cast<ra::context::impl::EmulatorMemoryContext*>(&ra::services::ServiceLocator::GetMutable<ra::context::IEmulatorMemoryContext>());
     if (pEmulatorMemoryContext)
     {
-        pEmulatorMemoryContext->AddMemoryBlockReader(
+        // void* to a function pointer: static_cast is an MSVC extension (GCC and Clang refuse it)
+        GSL_SUPPRESS_TYPE1 pEmulatorMemoryContext->AddMemoryBlockReader(
             nBankID, reinterpret_cast<ra::context::impl::EmulatorMemoryContext::MemoryReadBlockFunction*>(pReader));
     }
 }
